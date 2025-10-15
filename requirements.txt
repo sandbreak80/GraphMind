@@ -1,0 +1,46 @@
+# Core API
+fastapi>=0.104
+uvicorn[standard]>=0.24
+pydantic>=2.5
+python-multipart
+
+# PDF Processing
+docling>=1.8
+ocrmypdf>=15.4
+PyMuPDF>=1.23
+pdf2image
+
+# Office Documents (Excel, Word)
+openpyxl
+python-docx
+pandas>=2.1.4
+
+# Video Processing
+faster-whisper>=0.10
+opencv-python
+ffmpeg-python
+pytesseract  # OCR for video frames
+
+# Vector Store & Embeddings
+chromadb>=0.4
+sentence-transformers
+
+# Visual Understanding (for video frames)
+pillow
+
+# Retrieval
+rank-bm25
+
+# LLM Integration
+requests>=2.32.3
+httpx
+
+# ML/NLP
+torch
+transformers
+numpy>=1.26.4,<2.0
+
+# Utilities
+pyyaml
+python-magic
+tqdm
