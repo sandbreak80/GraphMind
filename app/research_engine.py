@@ -8,6 +8,8 @@ import time
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 import requests
+from app.ollama_client import OllamaClient
+from app.config import RESEARCH_LLM_MODEL, RESEARCH_TEMPERATURE, MAX_TOKENS
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +24,10 @@ class ResearchQuery:
 class AdvancedResearchEngine:
     """Advanced research engine that can handle any type of query."""
     
-    def __init__(self, searxng_client, query_generator):
+    def __init__(self, searxng_client, query_generator, ollama_client=None):
         self.searxng = searxng_client
         self.query_generator = query_generator
+        self.ollama = ollama_client or OllamaClient(default_model=RESEARCH_LLM_MODEL)
         self.cache = {}
         self.cache_ttl = 300  # 5 minutes
     
@@ -342,6 +345,80 @@ class AdvancedResearchEngine:
         )
         
         return unique_results
+    
+    def generate_research_response(self, user_query: str, research_data: Dict[str, Any], conversation_history: Optional[List[Dict[str, str]]] = None) -> str:
+        """
+        Generate a high-quality research response using the research-specific LLM.
+        
+        Args:
+            user_query: The user's research question
+            research_data: Comprehensive research data from web and documents
+            conversation_history: Previous conversation context
+            
+        Returns:
+            High-quality research response
+        """
+        try:
+            # Prepare context from research data
+            doc_context = "\n".join([r.get('text', '') for r in research_data.get('document_results', [])])
+            web_context = "\n".join([r.get('content', r.get('title', '')) for r in research_data.get('web_results', [])])
+            
+            # Prepare conversation context
+            conversation_context = ""
+            if conversation_history:
+                recent_context = conversation_history[-3:]  # Last 3 messages
+                conversation_context = "\n".join([
+                    f"{msg['role']}: {msg['content']}" 
+                    for msg in recent_context
+                ])
+            
+            # Create research-focused prompt
+            prompt = f"""You are an expert research analyst with deep expertise in business analysis, financial research, and market intelligence. Your task is to provide comprehensive, well-researched responses based on the provided data.
+
+RESEARCH QUESTION: {user_query}
+
+DOCUMENT CONTEXT:
+{doc_context}
+
+WEB RESEARCH DATA:
+{web_context}
+
+{conversation_context}
+
+INSTRUCTIONS:
+- Provide a comprehensive, well-structured research response
+- Use the provided data to support your analysis with specific facts and examples
+- Structure your response with clear sections and bullet points where appropriate
+- Include relevant metrics, data points, and concrete examples
+- Maintain a professional, analytical tone
+- Cite specific information from the sources when relevant
+- If data is limited, acknowledge this and provide what analysis is possible
+- Focus on actionable insights and key findings
+
+RESPONSE GUIDELINES:
+- Start with a clear executive summary if appropriate
+- Use professional formatting (headings, bullet points, etc.)
+- Include specific data, numbers, and examples
+- Provide balanced analysis with both strengths and areas for improvement
+- End with key takeaways or recommendations when relevant
+
+Provide a thorough, well-researched response that demonstrates deep analysis and professional research capabilities."""
+
+            # Generate response using research-optimized LLM
+            response = self.ollama.generate(
+                prompt=prompt,
+                model=RESEARCH_LLM_MODEL,
+                temperature=RESEARCH_TEMPERATURE,
+                max_tokens=MAX_TOKENS,
+                timeout=300
+            )
+            
+            logger.info(f"Generated research response using {RESEARCH_LLM_MODEL}")
+            return response
+            
+        except Exception as e:
+            logger.error(f"Research response generation failed: {e}")
+            return f"I apologize, but I encountered an error while generating the research response. The research data was collected successfully, but the analysis could not be completed. Error: {str(e)}"
 
 class ComprehensiveResearchSystem:
     """Comprehensive research system that combines multiple sources."""

@@ -360,14 +360,12 @@ async def ask_research_question(request: AskRequest, current_user: dict = get_cu
                 conversation_history
             )
             
-            # Generate answer using comprehensive context
-            doc_context = "\n".join([r['text'] for r in research_result["document_results"]])
-            web_context = "\n".join([r.get('content', '') for r in research_result["web_results"]])
-            
-            combined_context = f"DOCUMENT CONTEXT:\n{doc_context}\n\nCOMPREHENSIVE WEB RESEARCH:\n{web_context}"
-            
-            # Generate answer using production LLM
-            answer = retriever._generate_answer(request.query, combined_context, conversation_history)
+            # Generate answer using research-specific LLM
+            answer = comprehensive_research.research_engine.generate_research_response(
+                request.query, 
+                research_result, 
+                conversation_history
+            )
             
             # Combine citations
             doc_citations = [
@@ -424,6 +422,76 @@ async def ask_research_question(request: AskRequest, current_user: dict = get_cu
             
     except Exception as e:
         logger.error(f"Research query failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/test-research-models")
+async def test_research_models(request: AskRequest, current_user: dict = get_current_user):
+    """Test different LLM models for research tasks."""
+    try:
+        if not comprehensive_research:
+            raise HTTPException(status_code=503, detail="Research system not available")
+        
+        # Prepare conversation history
+        conversation_history = None
+        if request.conversation_history:
+            conversation_history = [
+                {"role": msg.role, "content": msg.content} 
+                for msg in request.conversation_history
+            ]
+        
+        # Conduct research
+        research_result = comprehensive_research.conduct_comprehensive_research(
+            request.query, 
+            conversation_history
+        )
+        
+        # Test different models
+        models_to_test = [
+            ("gpt-oss:20b", "GPT-OSS 20B - Best for complex analysis"),
+            ("deepseek-r1:14b", "DeepSeek R1 14B - Great for research"),
+            ("gemma3:12b", "Gemma3 12B - Good for writing"),
+            ("llama3.1:latest", "Llama3.1 8B - Balanced performance"),
+            ("qwen2.5-coder:14b", "Qwen2.5 Coder 14B - Current RAG model")
+        ]
+        
+        results = {}
+        
+        for model_name, description in models_to_test:
+            try:
+                # Create temporary Ollama client for this model
+                from app.ollama_client import OllamaClient
+                temp_ollama = OllamaClient(default_model=model_name)
+                
+                # Generate response
+                response = comprehensive_research.research_engine.generate_research_response(
+                    request.query, 
+                    research_result, 
+                    conversation_history
+                )
+                
+                results[model_name] = {
+                    "description": description,
+                    "response": response[:500] + "..." if len(response) > 500 else response,
+                    "length": len(response),
+                    "status": "success"
+                }
+                
+            except Exception as e:
+                results[model_name] = {
+                    "description": description,
+                    "error": str(e),
+                    "status": "failed"
+                }
+        
+        return {
+            "query": request.query,
+            "research_data_available": len(research_result.get("document_results", [])) + len(research_result.get("web_results", [])),
+            "model_comparisons": results
+        }
+        
+    except Exception as e:
+        logger.error(f"Model testing failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

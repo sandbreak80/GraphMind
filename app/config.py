@@ -77,8 +77,10 @@ CHUNK_ENRICHMENT_MODEL = os.getenv("CHUNK_ENRICHMENT_MODEL", "llama3.1:latest") 
 
 # High-Performance LLM Configuration (100GB RAM + 24 CPU cores)
 PRODUCTION_LLM_MODEL = os.getenv("PRODUCTION_LLM_MODEL", "qwen2.5-coder:14b")  # Best for trading strategies
+RESEARCH_LLM_MODEL = os.getenv("RESEARCH_LLM_MODEL", "gpt-oss:20b")  # Best for research and analysis
 MAX_TOKENS = int(os.getenv("MAX_TOKENS", "8000"))  # Massive responses with 100GB RAM
 TEMPERATURE = float(os.getenv("TEMPERATURE", "0.1"))  # Lower for consistent trading rules
+RESEARCH_TEMPERATURE = float(os.getenv("RESEARCH_TEMPERATURE", "0.3"))  # Higher for creative research
 TOP_P = float(os.getenv("TOP_P", "0.9"))  # Focused responses
 TIMEOUT = int(os.getenv("LLM_TIMEOUT", "300"))  # Extended timeout for complex analysis
 
