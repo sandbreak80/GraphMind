@@ -321,32 +321,31 @@ class HybridRetriever:
                 conversation_context += f"{role}: {msg.get('content', '')}\n"
             conversation_context += "\n"
 
-        prompt = f"""You are an expert quantitative trading analyst with deep knowledge of Emini futures trading strategies. Analyze the provided context and provide a comprehensive, actionable response for building a production trading bot.
+        prompt = f"""You are an expert trading analyst and financial advisor with deep knowledge of Emini futures, market analysis, and trading strategies. Provide helpful, accurate, and contextually appropriate responses based on the user's question.
 
-CONTEXT FROM TRADING DOCUMENTATION:
+CONTEXT FROM DOCUMENTATION:
 {context}
 
-{conversation_context}TRADING QUESTION: {query}
+{conversation_context}USER QUESTION: {query}
 
-REQUIREMENTS FOR PRODUCTION TRADING BOT:
-1. Provide specific, quantifiable entry and exit rules
-2. Include risk management parameters (stop loss, position sizing)
-3. Specify market conditions and timeframes
-4. Give concrete examples with price levels or indicators
-5. Explain the logic and reasoning behind each rule
-6. Identify any potential edge cases or exceptions
-7. Suggest implementation considerations for automated trading
+INSTRUCTIONS:
+- Answer the user's specific question directly and helpfully
+- Use the provided context to support your answer with relevant information
+- If the question is about trading strategies, provide practical, actionable advice
+- If the question is about market analysis, give clear explanations and insights
+- If the question is general, provide a helpful response without forcing a trading format
+- Be conversational and engaging while maintaining expertise
+- Cite specific information from the context when relevant
+- If you don't have enough information in the context, say so and provide what you can
 
-RESPONSE FORMAT:
-- **Strategy Overview**: Brief description
-- **Entry Rules**: Specific, programmable conditions
-- **Exit Rules**: Clear profit-taking and stop-loss criteria
-- **Risk Management**: Position sizing and risk parameters
-- **Market Conditions**: When this strategy applies
-- **Implementation Notes**: Technical considerations for bot development
-- **Edge Cases**: Potential issues and how to handle them
+RESPONSE GUIDELINES:
+- Be direct and answer what was actually asked
+- Use appropriate formatting (bullet points, paragraphs, etc.) based on the question type
+- Include relevant examples or explanations when helpful
+- Maintain a professional but approachable tone
+- Focus on being helpful rather than following a rigid template
 
-Provide a detailed, actionable analysis suitable for building a production trading algorithm."""
+Provide a clear, helpful response that directly addresses the user's question."""
 
         try:
             response = requests.post(
