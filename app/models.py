@@ -49,6 +49,7 @@ class AskResponse(BaseModel):
     spec_file: Optional[str] = None
     web_enabled: Optional[bool] = None
     total_sources: Optional[int] = None
+    search_metadata: Optional[Dict[str, Any]] = None
 
 
 class StrategySpec(BaseModel):

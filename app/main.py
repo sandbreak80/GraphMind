@@ -15,6 +15,7 @@ from app.web_search import create_web_search_provider, EnhancedRAGWithWebSearch
 from app.mcp_integration import create_mcp_client, EnhancedRAGWithMCP
 from app.searxng_client import create_searxng_client, EnhancedRAGWithSearXNG
 from app.obsidian_mcp_client import create_obsidian_client, EnhancedRAGWithObsidian
+from app.query_generator import IntelligentQueryGenerator, EnhancedWebSearch
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,17 +28,23 @@ enhanced_rag: Optional[EnhancedRAGWithWebSearch] = None
 mcp_rag: Optional[EnhancedRAGWithMCP] = None
 searxng_rag: Optional[EnhancedRAGWithSearXNG] = None
 obsidian_rag: Optional[EnhancedRAGWithObsidian] = None
+query_generator: Optional[IntelligentQueryGenerator] = None
+enhanced_web_search: Optional[EnhancedWebSearch] = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize services on startup."""
-    global ingestor, retriever, spec_extractor, enhanced_rag, mcp_rag, searxng_rag, obsidian_rag
+    global ingestor, retriever, spec_extractor, enhanced_rag, mcp_rag, searxng_rag, obsidian_rag, query_generator, enhanced_web_search
     
     logger.info("Initializing high-performance RAG service...")
     ingestor = PDFIngestor()
     retriever = HybridRetriever()
     spec_extractor = SpecExtractor(retriever)
+    
+    # Initialize intelligent query generator
+    query_generator = IntelligentQueryGenerator()
+    logger.info("Intelligent query generator initialized")
     
     # Initialize SearXNG integration (primary web search)
     import os
@@ -45,7 +52,9 @@ async def lifespan(app: FastAPI):
     searxng_client = create_searxng_client(searxng_url)
     if searxng_client:
         searxng_rag = EnhancedRAGWithSearXNG(retriever, searxng_client)
+        enhanced_web_search = EnhancedWebSearch(searxng_client, query_generator)
         logger.info(f"SearXNG integration enabled at {searxng_url}")
+        logger.info("Enhanced web search with intelligent query generation enabled")
     
     # Initialize enhanced RAG with web search (fallback)
     web_search_provider = create_web_search_provider()
@@ -200,18 +209,10 @@ async def ask_question(request: AskRequest, current_user: dict = get_current_use
 
 @app.post("/ask-enhanced", response_model=AskResponse)
 async def ask_enhanced_question(request: AskRequest, current_user: dict = get_current_user):
-    """Ask a question with enhanced web search and real-time data via SearXNG."""
+    """Ask a question with enhanced web search using intelligent query generation."""
     try:
-        # Use SearXNG if available, otherwise fall back to standard search
-        if searxng_rag:
-            result = searxng_rag.search_with_web_context(request.query, include_web=True)
-            
-            # Generate answer using enhanced context
-            doc_context = "\n".join([r['text'] for r in result["document_results"]])
-            web_context = "\n".join([r['content'] for r in result["web_results"]])
-            
-            combined_context = f"DOCUMENT CONTEXT:\n{doc_context}\n\nREAL-TIME WEB CONTEXT:\n{web_context}"
-            
+        # Use enhanced web search with intelligent query generation if available
+        if enhanced_web_search:
             # Prepare conversation history
             conversation_history = None
             if request.conversation_history:
@@ -219,6 +220,21 @@ async def ask_enhanced_question(request: AskRequest, current_user: dict = get_cu
                     {"role": msg.role, "content": msg.content} 
                     for msg in request.conversation_history
                 ]
+            
+            # Perform intelligent web search
+            web_search_result = enhanced_web_search.search_with_intelligent_queries(
+                request.query, 
+                conversation_history
+            )
+            
+            # Get document results from standard retrieval
+            doc_results = retriever.retrieve(request.query, top_k=10)
+            
+            # Generate answer using enhanced context
+            doc_context = "\n".join([r['text'] for r in doc_results])
+            web_context = "\n".join([r.get('content', '') for r in web_search_result["results"]])
+            
+            combined_context = f"DOCUMENT CONTEXT:\n{doc_context}\n\nREAL-TIME WEB CONTEXT:\n{web_context}"
             
             # Generate answer using production LLM
             answer = retriever._generate_answer(request.query, combined_context, conversation_history)
@@ -232,18 +248,18 @@ async def ask_enhanced_question(request: AskRequest, current_user: dict = get_cu
                     section=r['metadata'].get('section') or r['metadata'].get('doc_type', 'unknown'),
                     score=r['rerank_score']
                 )
-                for r in result["document_results"]
+                for r in doc_results
             ]
             
             web_citations = [
                 Citation(
-                    text=r['content'][:200] + "...",
+                    text=r.get('content', r.get('title', ''))[:200] + "...",
                     doc_id=f"web_{i}",
                     page=None,
-                    section=r['title'],
-                    score=r['score']
+                    section=r.get('title', 'Web Source'),
+                    score=r.get('score', 0.5)
                 )
-                for i, r in enumerate(result["web_results"])
+                for i, r in enumerate(web_search_result["results"])
             ]
             
             all_citations = doc_citations + web_citations
@@ -254,7 +270,13 @@ async def ask_enhanced_question(request: AskRequest, current_user: dict = get_cu
                 citations=all_citations,
                 mode="enhanced",
                 web_enabled=True,
-                total_sources=result["total_sources"]
+                total_sources=len(doc_results) + len(web_search_result["results"]),
+                search_metadata={
+                    "generated_queries": web_search_result.get("generated_queries", []),
+                    "entities_found": web_search_result.get("entities_found", []),
+                    "total_queries": web_search_result.get("total_queries", 0),
+                    "successful_queries": web_search_result.get("successful_queries", 0)
+                }
             )
         else:
             # Fallback to standard search
@@ -272,6 +294,45 @@ async def ask_enhanced_question(request: AskRequest, current_user: dict = get_cu
             
     except Exception as e:
         logger.error(f"Enhanced ask failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/generate-search-queries")
+async def generate_search_queries(request: AskRequest, current_user: dict = get_current_user):
+    """Generate intelligent search queries for a given prompt."""
+    try:
+        if not query_generator:
+            raise HTTPException(status_code=503, detail="Query generator not available")
+        
+        # Prepare conversation history
+        conversation_history = None
+        if request.conversation_history:
+            conversation_history = [
+                {"role": msg.role, "content": msg.content} 
+                for msg in request.conversation_history
+            ]
+        
+        # Generate search queries
+        search_queries = query_generator.generate_search_queries(request.query, conversation_history)
+        
+        return {
+            "query": request.query,
+            "generated_queries": [
+                {
+                    "query": sq.query,
+                    "intent": sq.intent,
+                    "entities": sq.entities,
+                    "search_type": sq.search_type,
+                    "priority": sq.priority,
+                    "context": sq.context
+                }
+                for sq in search_queries
+            ],
+            "total_queries": len(search_queries)
+        }
+        
+    except Exception as e:
+        logger.error(f"Query generation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

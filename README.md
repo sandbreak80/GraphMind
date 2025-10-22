@@ -5,6 +5,7 @@ A comprehensive Retrieval-Augmented Generation (RAG) system designed for trading
 ## 🚀 Features
 
 ### Recent Improvements (Latest Version)
+- **🧠 Intelligent Search System**: LLM-powered query generation for enhanced web search
 - **Enhanced Text Input**: Large text area supporting very long prompts without truncation
 - **Real-time Character Counter**: Visual feedback for long content
 - **Improved UI/UX**: Better user experience with auto-resizing text areas
@@ -21,6 +22,7 @@ A comprehensive Retrieval-Augmented Generation (RAG) system designed for trading
 - **Vector Database**: ChromaDB with persistent storage
 
 ### Integration Features
+- **🧠 Intelligent Web Search**: LLM-powered query generation for enhanced search results
 - **Web Search**: SearXNG integration for real-time information
 - **Obsidian Integration**: Access personal notes via MCP protocol
 - **Ollama Integration**: Local LLM support with multiple models
@@ -103,6 +105,7 @@ docker compose ps
 - [Production Deployment](PRODUCTION_DEPLOYMENT.md) - Production deployment guide
 
 ### Integration Guides
+- [Intelligent Search Guide](INTELLIGENT_SEARCH_GUIDE.md) - LLM-powered query generation
 - [Obsidian Setup](OBSIDIAN_SETUP_GUIDE.md) - Personal notes integration
 - [SearXNG Integration](OBSIDIAN_API_SETUP.md) - Web search setup
 
@@ -165,8 +168,9 @@ OBSIDIAN_VAULT_PATH=/workspace/obsidian_vault
 
 #### Core RAG Endpoints
 - `POST /ask` - Standard RAG query
-- `POST /ask-enhanced` - Enhanced RAG with web search
+- `POST /ask-enhanced` - Enhanced RAG with intelligent web search
 - `POST /ask-obsidian` - RAG with Obsidian integration
+- `POST /generate-search-queries` - Generate intelligent search queries
 - `POST /ingest` - Document ingestion
 - `GET /stats` - System statistics
 
@@ -177,6 +181,33 @@ OBSIDIAN_VAULT_PATH=/workspace/obsidian_vault
 #### Utility Endpoints
 - `GET /health` - Health check
 - `GET /` - API information
+
+### 🧠 Intelligent Search System
+
+The system now features **LLM-powered query generation** that transforms user prompts into targeted, context-aware web searches:
+
+#### How It Works
+1. **Prompt Analysis**: LLM analyzes user intent and extracts entities
+2. **Query Generation**: Creates 3-5 targeted search queries per prompt
+3. **Multi-Query Search**: Executes searches across different angles
+4. **Result Synthesis**: Combines and ranks results by relevance
+
+#### Example
+```
+User: "What's the current market sentiment for ES futures?"
+
+Generated Queries:
+- "ES futures market sentiment today"
+- "E-mini S&P 500 market analysis current conditions"  
+- "ES futures trading sentiment indicators"
+- "S&P 500 futures market outlook today"
+```
+
+#### Benefits
+- **3-5x More Relevant Results**: Context-aware search strategies
+- **Comprehensive Coverage**: Multiple search angles per question
+- **Entity Recognition**: Automatically detects symbols, dates, concepts
+- **Conversation Context**: Considers previous chat history
 
 ### Frontend Interface
 
