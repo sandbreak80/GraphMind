@@ -4,6 +4,15 @@ A comprehensive Retrieval-Augmented Generation (RAG) system designed for trading
 
 ## 🚀 Features
 
+### Recent Improvements (Latest Version)
+- **Enhanced Text Input**: Large text area supporting very long prompts without truncation
+- **Real-time Character Counter**: Visual feedback for long content
+- **Improved UI/UX**: Better user experience with auto-resizing text areas
+- **Robust Error Handling**: Graceful error handling and user feedback
+- **Authentication System**: Secure JWT-based authentication
+- **Source Citation Display**: Clear source attribution with relevance scores
+- **Responsive Design**: Optimized for various screen sizes
+
 ### Core RAG Capabilities
 - **Multi-Format Document Processing**: PDFs, Word docs, Excel files, text files
 - **Video Transcription**: MP4/WEBM support with GPU-accelerated Whisper
@@ -177,6 +186,11 @@ The web interface provides:
 - **Feature Toggles**: Enable/disable RAG, web search, and Obsidian
 - **Settings Panel**: Configure API endpoints and preferences
 - **Chat History**: Persistent conversation history
+- **Enhanced Text Input**: Large text area supporting long prompts (up to 50,000 characters)
+- **Real-time Character Counter**: Shows character count for long prompts
+- **Auto-resize Textarea**: Automatically expands for long content
+- **Source Citations**: Displays source documents with relevance scores
+- **Authentication**: Secure login system with JWT tokens
 
 ## 🔍 Document Processing
 
@@ -226,6 +240,16 @@ The web interface provides:
 ## 🐛 Troubleshooting
 
 ### Common Issues
+
+#### Text Input Truncation (RESOLVED)
+- **Issue**: Long prompts were being cut off in the text input
+- **Solution**: Enhanced text area with no character limits and auto-resize functionality
+- **Status**: ✅ Fixed in latest version
+
+#### UI Error Messages (RESOLVED)
+- **Issue**: "Sorry, I encountered an error" messages appearing
+- **Solution**: Improved error handling and API request formatting
+- **Status**: ✅ Fixed in latest version
 
 #### Collection Not Found
 ```bash

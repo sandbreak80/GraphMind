@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { generateChatTitle } from './chatNaming'
 
 export interface Message {
   id: string
@@ -42,6 +43,11 @@ export interface OllamaModel {
   }
 }
 
+export interface User {
+  username: string
+  is_admin: boolean
+}
+
 export interface Settings {
   apiUrl: string
   selectedModel: string
@@ -55,6 +61,11 @@ export interface Settings {
 }
 
 interface AppState {
+  // Authentication
+  isAuthenticated: boolean
+  user: User | null
+  authToken: string | null
+  
   // Chat state
   chats: Chat[]
   currentChatId: string | null
@@ -79,6 +90,7 @@ interface AppState {
   addMessage: (message: Omit<Message, 'id' | 'timestamp'>) => void
   updateMessage: (id: string, updates: Partial<Message>) => void
   createChat: (title: string) => string
+  createChatWithAutoName: (firstMessage: string) => string
   deleteChat: (chatId: string) => void
   clearMessages: () => void
   setProcessing: (processing: boolean) => void
@@ -90,14 +102,23 @@ interface AppState {
   setSidebarOpen: (open: boolean) => void
   setTheme: (theme: 'light' | 'dark') => void
   
+  // Authentication actions
+  login: (token: string, user: User) => void
+  logout: () => void
+  checkAuth: () => boolean
+  
   initializeApp: () => Promise<void>
 }
 
 // Determine API URL based on environment
 const getApiUrl = () => {
-  // Always use localhost:8001 to avoid Cloudflare DNS issues
-  // The backend is exposed on localhost:8001, not through the domain
-  return 'http://localhost:8001'
+  // Check if we're running in the browser (client-side)
+  if (typeof window !== 'undefined') {
+    // Use the external URL when accessed from browser
+    return 'http://localhost:8001'
+  }
+  // Use Docker service name for container-to-container communication
+  return 'http://rag-service:8000'
 }
 
 const defaultSettings: Settings = {
@@ -116,6 +137,9 @@ export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
       // Initial state
+      isAuthenticated: false,
+      user: null,
+      authToken: null,
       chats: [],
       currentChatId: null,
       messages: [],
@@ -147,12 +171,22 @@ export const useStore = create<AppState>()(
         set(state => {
           const newMessages = [...state.messages, newMessage]
           
-          // Update current chat
-          const updatedChats = state.chats.map(chat => 
-            chat.id === state.currentChatId 
-              ? { ...chat, messages: newMessages, updatedAt: new Date().toISOString() }
-              : chat
-          )
+          // Auto-name chat if this is the first user message
+          let updatedChats = state.chats.map(chat => {
+            if (chat.id === state.currentChatId) {
+              const updatedChat = { ...chat, messages: newMessages, updatedAt: new Date().toISOString() }
+              
+              // If this is the first user message and chat title is generic, auto-name it
+              if (message.role === 'user' && 
+                  newMessages.filter(m => m.role === 'user').length === 1 && 
+                  (chat.title === 'New Chat' || chat.title === 'Trading Strategy Chat')) {
+                updatedChat.title = generateChatTitle(message.content)
+              }
+              
+              return updatedChat
+            }
+            return chat
+          })
           
           return {
             messages: newMessages,
@@ -187,6 +221,11 @@ export const useStore = create<AppState>()(
         return newChat.id
       },
       
+      createChatWithAutoName: (firstMessage: string) => {
+        const title = generateChatTitle(firstMessage)
+        return get().createChat(title)
+      },
+      
       deleteChat: (chatId) => {
         set(state => ({
           chats: state.chats.filter(chat => chat.id !== chatId),
@@ -201,6 +240,57 @@ export const useStore = create<AppState>()(
       
       setProcessing: (processing) => {
         set({ isProcessing: processing })
+      },
+      
+      // Authentication actions
+      login: (token: string, user: User) => {
+        set({ 
+          isAuthenticated: true, 
+          user, 
+          authToken: token 
+        })
+        // Store token in localStorage
+        localStorage.setItem('authToken', token)
+        localStorage.setItem('user', JSON.stringify(user))
+      },
+      
+      logout: () => {
+        set({ 
+          isAuthenticated: false, 
+          user: null, 
+          authToken: null 
+        })
+        // Clear token from localStorage
+        localStorage.removeItem('authToken')
+        localStorage.removeItem('user')
+      },
+      
+      checkAuth: () => {
+        const token = localStorage.getItem('authToken')
+        const userStr = localStorage.getItem('user')
+        
+        if (token && userStr) {
+          try {
+            const user = JSON.parse(userStr)
+            set({ 
+              isAuthenticated: true, 
+              user, 
+              authToken: token 
+            })
+            return true
+          } catch (error) {
+            console.error('Failed to parse user data:', error)
+            localStorage.removeItem('authToken')
+            localStorage.removeItem('user')
+          }
+        }
+        
+        set({ 
+          isAuthenticated: false, 
+          user: null, 
+          authToken: null 
+        })
+        return false
       },
       
       setModels: (models) => set({ models }),

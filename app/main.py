@@ -2,11 +2,12 @@
 import logging
 from contextlib import asynccontextmanager
 from typing import Optional
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Form
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.models import IngestRequest, IngestResponse, AskRequest, AskResponse, Citation
+from app.auth import auth_manager, get_current_user, require_admin
 from app.ingest import PDFIngestor
 from app.retrieval import HybridRetriever
 from app.spec_extraction import SpecExtractor
@@ -99,8 +100,38 @@ async def root():
     return {"status": "online", "service": "EminiPlayer RAG"}
 
 
+# Authentication endpoints
+@app.post("/auth/login")
+async def login(username: str = Form(...), password: str = Form(...)):
+    """Login endpoint to get access token."""
+    user = auth_manager.authenticate_user(username, password)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect username or password"
+        )
+    
+    access_token = auth_manager.create_access_token(data={"sub": user["username"]})
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "username": user["username"],
+            "is_admin": user["is_admin"]
+        }
+    }
+
+@app.get("/auth/me")
+async def get_current_user_info(current_user: dict = get_current_user):
+    """Get current user information."""
+    return {
+        "username": current_user["username"],
+        "is_admin": current_user["is_admin"],
+        "created_at": current_user["created_at"]
+    }
+
 @app.post("/ingest", response_model=IngestResponse)
-async def ingest_pdfs(request: IngestRequest):
+async def ingest_pdfs(request: IngestRequest, current_user: dict = get_current_user):
     """
     Ingest PDFs from /workspace/pdfs directory.
     
@@ -122,7 +153,7 @@ async def ingest_pdfs(request: IngestRequest):
 
 
 @app.post("/ask", response_model=AskResponse)
-async def ask_question(request: AskRequest):
+async def ask_question(request: AskRequest, current_user: dict = get_current_user):
     """
     Answer questions with citations or extract YAML spec.
     
@@ -143,9 +174,18 @@ async def ask_question(request: AskRequest):
                 spec_file=result.get("spec_file")
             )
         else:
+            # Convert conversation history to the format expected by retrieval
+            conversation_history = None
+            if request.conversation_history:
+                conversation_history = [
+                    {"role": msg.role, "content": msg.content} 
+                    for msg in request.conversation_history
+                ]
+            
             result = retriever.answer_query(
                 query=request.query,
-                top_k=request.top_k
+                top_k=request.top_k,
+                conversation_history=conversation_history
             )
             return AskResponse(
                 query=request.query,
@@ -159,7 +199,7 @@ async def ask_question(request: AskRequest):
 
 
 @app.post("/ask-enhanced", response_model=AskResponse)
-async def ask_enhanced_question(request: AskRequest):
+async def ask_enhanced_question(request: AskRequest, current_user: dict = get_current_user):
     """Ask a question with enhanced web search and real-time data via SearXNG."""
     try:
         # Use SearXNG if available, otherwise fall back to standard search
@@ -172,16 +212,24 @@ async def ask_enhanced_question(request: AskRequest):
             
             combined_context = f"DOCUMENT CONTEXT:\n{doc_context}\n\nREAL-TIME WEB CONTEXT:\n{web_context}"
             
+            # Prepare conversation history
+            conversation_history = None
+            if request.conversation_history:
+                conversation_history = [
+                    {"role": msg.role, "content": msg.content} 
+                    for msg in request.conversation_history
+                ]
+            
             # Generate answer using production LLM
-            answer = retriever._generate_answer(request.query, combined_context)
+            answer = retriever._generate_answer(request.query, combined_context, conversation_history)
             
             # Combine citations
             doc_citations = [
                 Citation(
                     text=r['text'][:200] + "...",
-                    doc_id=r['metadata'].get('doc_id', 'unknown'),
+                    doc_id=r['metadata'].get('doc_id') or r['metadata'].get('file_name', 'unknown'),
                     page=r['metadata'].get('page'),
-                    section=r['metadata'].get('section'),
+                    section=r['metadata'].get('section') or r['metadata'].get('doc_type', 'unknown'),
                     score=r['rerank_score']
                 )
                 for r in result["document_results"]
@@ -228,7 +276,7 @@ async def ask_enhanced_question(request: AskRequest):
 
 
 @app.post("/ask-obsidian", response_model=AskResponse)
-async def ask_obsidian_question(request: AskRequest):
+async def ask_obsidian_question(request: AskRequest, current_user: dict = get_current_user):
     """Ask a question with enhanced personal knowledge from Obsidian notes."""
     try:
         # Use Obsidian if available, otherwise fall back to standard search
@@ -241,16 +289,24 @@ async def ask_obsidian_question(request: AskRequest):
             
             combined_context = f"DOCUMENT CONTEXT:\n{doc_context}\n\nPERSONAL KNOWLEDGE (OBSIDIAN):\n{obsidian_context}"
             
+            # Prepare conversation history
+            conversation_history = None
+            if request.conversation_history:
+                conversation_history = [
+                    {"role": msg.role, "content": msg.content} 
+                    for msg in request.conversation_history
+                ]
+            
             # Generate answer using production LLM
-            answer = retriever._generate_answer(request.query, combined_context)
+            answer = retriever._generate_answer(request.query, combined_context, conversation_history)
             
             # Combine citations
             doc_citations = [
                 Citation(
                     text=r['text'][:200] + "...",
-                    doc_id=r['metadata'].get('doc_id', 'unknown'),
+                    doc_id=r['metadata'].get('doc_id') or r['metadata'].get('file_name', 'unknown'),
                     page=r['metadata'].get('page'),
-                    section=r['metadata'].get('section'),
+                    section=r['metadata'].get('section') or r['metadata'].get('doc_type', 'unknown'),
                     score=r['rerank_score']
                 )
                 for r in result["document_results"]
@@ -259,7 +315,7 @@ async def ask_obsidian_question(request: AskRequest):
             obsidian_citations = [
                 Citation(
                     text=r['text'][:200] + "...",
-                    doc_id=r['metadata'].get('doc_id', 'unknown'),
+                    doc_id=r['metadata'].get('doc_id') or r['metadata'].get('file_name', 'unknown'),
                     page=None,
                     section=r['metadata'].get('title', 'Obsidian Note'),
                     score=r['score']
@@ -297,7 +353,7 @@ async def ask_obsidian_question(request: AskRequest):
 
 
 @app.get("/stats")
-async def get_stats():
+async def get_stats(current_user: dict = get_current_user):
     """Get database statistics."""
     try:
         stats = retriever.get_stats()

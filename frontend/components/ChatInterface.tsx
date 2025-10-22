@@ -19,7 +19,7 @@ export function ChatInterface() {
   } = useStore()
   
   const [inputValue, setInputValue] = useState('')
-  const [selectedMode, setSelectedMode] = useState<'qa' | 'spec' | 'obsidian'>('obsidian')
+  const [selectedMode, setSelectedMode] = useState<'obsidian-only' | 'rag-only' | 'web-only'>('obsidian-only')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -27,8 +27,15 @@ export function ChatInterface() {
   }
 
   useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+    // Only scroll to bottom when a new message is added, not when content is updated
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1]
+      // Only scroll if it's a new message (not a content update)
+      if (lastMessage.role === 'user' || !lastMessage.isProcessing) {
+        scrollToBottom()
+      }
+    }
+  }, [messages.length]) // Only trigger on message count change, not content changes
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isStreaming || isProcessing) return
@@ -38,6 +45,12 @@ export function ChatInterface() {
 
     // Set processing state
     setProcessing(true)
+
+    // Create new chat if none exists
+    const { currentChatId, createChatWithAutoName } = useStore.getState()
+    if (!currentChatId) {
+      createChatWithAutoName(userMessage)
+    }
 
     // Add user message
     addMessage({
@@ -57,32 +70,37 @@ export function ChatInterface() {
     const assistantMessageId = currentMessages[currentMessages.length - 1]?.id
 
     try {
-      // Call the appropriate API method based on mode and settings
+      // Prepare conversation history (exclude the current message and processing message)
+      const conversationHistory = messages
+        .filter(msg => msg.role !== 'assistant' || !msg.isProcessing)
+        .map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }))
+
+      // Prepare request object
+      const request = {
+        query: userMessage,
+        mode: 'qa' as const,
+        top_k: settings.topK,
+        temperature: settings.temperature,
+        max_tokens: settings.maxTokens,
+        conversation_history: conversationHistory
+      }
+
+      // Call the appropriate API method based on selected mode
       let response
-      if (selectedMode === 'obsidian' && settings.enableObsidian) {
-        response = await apiClient.askObsidian({
-          query: userMessage,
-          mode: selectedMode,
-          top_k: settings.topK,
-          temperature: settings.temperature,
-          max_tokens: settings.maxTokens
-        })
-      } else if (settings.enableWebSearch) {
-        response = await apiClient.askEnhanced({
-          query: userMessage,
-          mode: selectedMode,
-          top_k: settings.topK,
-          temperature: settings.temperature,
-          max_tokens: settings.maxTokens
-        })
-      } else {
-        response = await apiClient.ask({
-          query: userMessage,
-          mode: selectedMode,
-          top_k: settings.topK,
-          temperature: settings.temperature,
-          max_tokens: settings.maxTokens
-        })
+      if (selectedMode === 'obsidian-only') {
+        response = await apiClient.askObsidian(request)
+      } else if (selectedMode === 'web-only') {
+        response = await apiClient.askEnhanced(request)
+      } else if (selectedMode === 'rag-only') {
+        response = await apiClient.ask(request)
+      }
+
+      // Check if response is valid
+      if (!response) {
+        throw new Error('No response received from API')
       }
 
       // Update assistant message with response
@@ -138,11 +156,11 @@ export function ChatInterface() {
           placeholder={
             isProcessing 
               ? "Processing your request... Please wait..."
-              : selectedMode === 'obsidian' 
-              ? "Ask about your trading strategies..." 
-              : selectedMode === 'spec'
-              ? "Generate a trading strategy specification..."
-              : "Ask a question..."
+              : selectedMode === 'obsidian-only' 
+              ? "Ask about your personal trading notes..." 
+              : selectedMode === 'web-only'
+              ? "Search the web for real-time information..."
+              : "Ask about the trading strategy knowledge base..."
           }
         />
       </div>

@@ -25,11 +25,19 @@ class Citation(BaseModel):
     score: float
 
 
+class Message(BaseModel):
+    """Chat message for conversation context."""
+    role: str = Field(..., description="Message role: 'user' or 'assistant'")
+    content: str = Field(..., description="Message content")
+
 class AskRequest(BaseModel):
     """Request to ask a question."""
     query: str = Field(..., description="Question to ask")
     mode: str = Field("qa", description="Mode: 'qa' or 'spec'")
     top_k: int = Field(5, description="Number of results to return")
+    temperature: Optional[float] = Field(None, description="Temperature for LLM generation")
+    max_tokens: Optional[int] = Field(None, description="Maximum tokens for LLM generation")
+    conversation_history: Optional[List[Message]] = Field(None, description="Previous conversation messages")
 
 
 class AskResponse(BaseModel):

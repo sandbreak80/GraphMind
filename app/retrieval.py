@@ -1,6 +1,6 @@
 """High-performance hybrid retrieval with BM25, embeddings, and reranking."""
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import chromadb
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer, CrossEncoder
@@ -265,7 +265,7 @@ class HybridRetriever:
         
         return all_results[:top_k]
     
-    def answer_query(self, query: str, top_k: int = 5) -> Dict[str, Any]:
+    def answer_query(self, query: str, top_k: int = 5, conversation_history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
         """Answer query using retrieved context and Ollama."""
         # Retrieve relevant documents
         results = self.retrieve(query, top_k=top_k)
@@ -289,15 +289,15 @@ class HybridRetriever:
         context = "\n".join(context_parts)
         
         # Generate answer with Ollama
-        answer = self._generate_answer(query, context)
+        answer = self._generate_answer(query, context, conversation_history)
         
         # Build citations
         citations = [
             Citation(
                 text=result['text'][:200] + "...",
-                doc_id=result['metadata'].get('doc_id', 'unknown'),
+                doc_id=result['metadata'].get('doc_id') or result['metadata'].get('file_name', 'unknown'),
                 page=result['metadata'].get('page'),
-                section=result['metadata'].get('section'),
+                section=result['metadata'].get('section') or result['metadata'].get('doc_type', 'unknown'),
                 score=result['rerank_score']
             )
             for result in results
@@ -308,16 +308,25 @@ class HybridRetriever:
             "citations": citations
         }
     
-    def _generate_answer(self, query: str, context: str) -> str:
+    def _generate_answer(self, query: str, context: str, conversation_history: Optional[List[Dict[str, str]]] = None) -> str:
         """Generate comprehensive trading analysis using production-grade LLM."""
         from app.config import PRODUCTION_LLM_MODEL, MAX_TOKENS, TEMPERATURE, TOP_P, TIMEOUT
         
+        # Build conversation context if provided
+        conversation_context = ""
+        if conversation_history:
+            conversation_context = "\n\nPREVIOUS CONVERSATION:\n"
+            for msg in conversation_history[-10:]:  # Limit to last 10 messages
+                role = "User" if msg.get('role') == 'user' else "Assistant"
+                conversation_context += f"{role}: {msg.get('content', '')}\n"
+            conversation_context += "\n"
+
         prompt = f"""You are an expert quantitative trading analyst with deep knowledge of Emini futures trading strategies. Analyze the provided context and provide a comprehensive, actionable response for building a production trading bot.
 
 CONTEXT FROM TRADING DOCUMENTATION:
 {context}
 
-TRADING QUESTION: {query}
+{conversation_context}TRADING QUESTION: {query}
 
 REQUIREMENTS FOR PRODUCTION TRADING BOT:
 1. Provide specific, quantifiable entry and exit rules

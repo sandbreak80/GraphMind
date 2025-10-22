@@ -24,8 +24,25 @@ export function MessageInput({
 
   useEffect(() => {
     if (textareaRef.current) {
+      // Force reset height to get accurate scroll height
       textareaRef.current.style.height = 'auto'
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+      textareaRef.current.style.overflowY = 'hidden'
+      
+      // Get the natural height of the content
+      const scrollHeight = textareaRef.current.scrollHeight
+      
+      // Set height to content height, but cap at 256px
+      const newHeight = Math.min(scrollHeight, 256)
+      textareaRef.current.style.height = `${newHeight}px`
+      
+      // Enable scrolling if content exceeds max height
+      if (scrollHeight > 256) {
+        textareaRef.current.style.overflowY = 'auto'
+      }
+      
+      // Ensure the textarea can handle large content
+      textareaRef.current.style.whiteSpace = 'pre-wrap'
+      textareaRef.current.style.wordWrap = 'break-word'
     }
   }, [value])
 
@@ -46,8 +63,14 @@ export function MessageInput({
           onKeyPress={onKeyPress}
           disabled={disabled}
           placeholder={placeholder}
-          className="input w-full resize-none min-h-[44px] max-h-32 py-3 pr-12"
+          className="input w-full resize-none min-h-[44px] max-h-64 py-3 pr-12"
           rows={1}
+          style={{ 
+            overflowY: 'auto',
+            minHeight: '44px',
+            maxHeight: '256px',
+            height: 'auto'
+          }}
         />
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
           <button
@@ -58,6 +81,12 @@ export function MessageInput({
             <PaperAirplaneIcon className="h-5 w-5" />
           </button>
         </div>
+        {/* Character counter for debugging */}
+        {value.length > 0 && (
+          <div className="absolute bottom-1 right-12 text-xs text-gray-500 dark:text-gray-400">
+            {value.length.toLocaleString()} chars
+          </div>
+        )}
       </div>
     </form>
   )

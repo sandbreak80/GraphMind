@@ -4,6 +4,10 @@ uvicorn[standard]>=0.24
 pydantic>=2.5
 python-multipart
 
+# Authentication
+python-jose[cryptography]>=3.3.0
+python-multipart
+
 # PDF Processing
 docling>=1.8
 ocrmypdf>=15.4

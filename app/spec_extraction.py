@@ -51,7 +51,7 @@ class SpecExtractor:
         citations = [
             Citation(
                 text=result['text'][:300] + "...",
-                doc_id=result['metadata'].get('doc_id', 'unknown'),
+                doc_id=result['metadata'].get('doc_id') or result['metadata'].get('file_name', 'unknown'),
                 page=result['metadata'].get('page'),
                 section=result['metadata'].get('section'),
                 score=result['rerank_score']

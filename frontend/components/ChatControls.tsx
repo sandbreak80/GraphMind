@@ -9,8 +9,8 @@ import {
 } from '@heroicons/react/24/outline'
 
 interface ChatControlsProps {
-  selectedMode: 'qa' | 'spec' | 'obsidian'
-  onModeChange: (mode: 'qa' | 'spec' | 'obsidian') => void
+  selectedMode: 'obsidian-only' | 'rag-only' | 'web-only'
+  onModeChange: (mode: 'obsidian-only' | 'rag-only' | 'web-only') => void
 }
 
 export function ChatControls({ selectedMode, onModeChange }: ChatControlsProps) {
@@ -18,25 +18,25 @@ export function ChatControls({ selectedMode, onModeChange }: ChatControlsProps) 
 
   const modes = [
     {
-      id: 'obsidian' as const,
-      name: 'Obsidian',
-      description: 'Search your personal notes',
+      id: 'obsidian-only' as const,
+      name: 'Obsidian Only',
+      description: 'Search only your personal notes',
       icon: BookOpenIcon,
       enabled: settings.enableObsidian
     },
     {
-      id: 'qa' as const,
-      name: 'RAG',
-      description: 'Document knowledge base',
+      id: 'rag-only' as const,
+      name: 'RAG Only',
+      description: 'Search only document knowledge base',
       icon: DocumentTextIcon,
       enabled: settings.enableRAG
     },
     {
-      id: 'spec' as const,
-      name: 'Spec',
-      description: 'Generate specifications',
-      icon: Cog6ToothIcon,
-      enabled: settings.enableRAG
+      id: 'web-only' as const,
+      name: 'Web Search Only',
+      description: 'Search only the web for real-time information',
+      icon: GlobeAltIcon,
+      enabled: settings.enableWebSearch
     }
   ]
 
