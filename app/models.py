@@ -39,6 +39,8 @@ class AskResponse(BaseModel):
     citations: List[Citation]
     mode: str
     spec_file: Optional[str] = None
+    web_enabled: Optional[bool] = None
+    total_sources: Optional[int] = None
 
 
 class StrategySpec(BaseModel):

@@ -27,6 +27,7 @@ chroma_data/
 enrichment.log
 reingest.log
 reingest_api.log
+.resume
 
 # Environment and secrets
 .env

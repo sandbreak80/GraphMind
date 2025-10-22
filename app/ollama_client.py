@@ -21,9 +21,9 @@ class OllamaClient:
         self,
         prompt: str,
         model: Optional[str] = None,
-        temperature: float = 0.7,
-        max_tokens: int = 2000,
-        timeout: int = 120
+        temperature: float = 0.1,
+        max_tokens: int = 4000,
+        timeout: int = 180
     ) -> str:
         """
         Generate text using Ollama API.
@@ -48,7 +48,10 @@ class OllamaClient:
                 "stream": False,
                 "options": {
                     "temperature": temperature,
-                    "num_predict": max_tokens
+                    "num_predict": max_tokens,
+                    "top_p": 0.9,
+                    "repeat_penalty": 1.1,
+                    "stop": ["Human:", "User:", "Question:", "Context:"]
                 }
             }
             

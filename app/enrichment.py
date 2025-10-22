@@ -17,9 +17,9 @@ class KnowledgeEnricher:
     def __init__(
         self,
         ollama_url: str = OLLAMA_BASE_URL,
-        video_model: str = "llama3.1:8b",
-        pdf_model: str = "gpt-oss:20b",
-        chunk_model: str = "llama3.2:3b"
+        video_model: str = None,
+        pdf_model: str = None,
+        chunk_model: str = None
     ):
         """
         Initialize enricher with different models for different tasks.
@@ -30,10 +30,14 @@ class KnowledgeEnricher:
             pdf_model: Model for PDF analysis (more capable)
             chunk_model: Model for quick chunk metadata (ultra fast)
         """
-        self.ollama = OllamaClient(ollama_url, default_model=video_model)
-        self.video_model = video_model
-        self.pdf_model = pdf_model
-        self.chunk_model = chunk_model
+        # Use environment variables or defaults
+        from app.config import VIDEO_ENRICHMENT_MODEL, PDF_ENRICHMENT_MODEL, CHUNK_ENRICHMENT_MODEL
+        
+        self.video_model = video_model or VIDEO_ENRICHMENT_MODEL
+        self.pdf_model = pdf_model or PDF_ENRICHMENT_MODEL
+        self.chunk_model = chunk_model or CHUNK_ENRICHMENT_MODEL
+        
+        self.ollama = OllamaClient(ollama_url, default_model=self.video_model)
         
         # Create enrichment cache directory
         self.cache_dir = OUTPUT_DIR / "enrichment_cache"

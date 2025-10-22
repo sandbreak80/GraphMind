@@ -10,7 +10,7 @@ import chromadb
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
 
-from app.config import PDF_DIR, CHROMA_DIR, OUTPUT_DIR, EMBEDDING_MODEL, CHUNK_SIZE, CHUNK_OVERLAP, AI_ENRICHMENT_ENABLED
+from app.config import PDF_DIR, CHROMA_DIR, OUTPUT_DIR, EMBEDDING_MODEL, COLLECTION_NAME, CHUNK_SIZE, CHUNK_OVERLAP, AI_ENRICHMENT_ENABLED
 from app.document_processor import DocumentProcessor
 from app.video_processor import VideoProcessor
 from app.doc_type_inference import infer_doc_type, get_doc_category, get_difficulty_hint
@@ -28,7 +28,7 @@ class PDFIngestor:
             settings=Settings(anonymized_telemetry=False)
         )
         self.collection = self.chroma_client.get_or_create_collection(
-            name="emini_docs",
+            name=COLLECTION_NAME,
             metadata={"hnsw:space": "cosine"}
         )
         self.embedding_model = SentenceTransformer(EMBEDDING_MODEL)
@@ -78,6 +78,13 @@ class PDFIngestor:
                 metadata={"hnsw:space": "cosine"}
             )
         
+        # Check collection state before ingestion
+        try:
+            count = self.collection.count()
+            logger.info(f"Collection 'emini_docs' currently has {count} documents")
+        except Exception as e:
+            logger.warning(f"Could not get collection count: {e}")
+        
         processed_files = 0
         total_chunks = 0
         failed_files = []
@@ -101,6 +108,13 @@ class PDFIngestor:
         if failed_files:
             logger.warning(f"Failed files ({len(failed_files)}): {', '.join(failed_files[:10])}")
         
+        # Check final collection state
+        try:
+            final_count = self.collection.count()
+            logger.info(f"Final collection 'emini_docs' has {final_count} documents")
+        except Exception as e:
+            logger.warning(f"Could not get final collection count: {e}")
+        
         return {
             "processed_files": processed_files,
             "total_chunks": total_chunks,
@@ -115,11 +129,9 @@ class PDFIngestor:
         if ext == '.pdf':
             return self._process_pdf(file_path)
         
-        # Videos - TEMPORARILY SKIP DUE TO METADATA ISSUE
+        # Videos - Process with LLM enrichment
         elif ext in ['.mp4', '.webm', '.avi', '.mov']:
-            logger.warning(f"Skipping video {file_path.name} - video support temporarily disabled for debugging")
-            return []
-            # return self.video_processor.process_video(file_path, extract_frames=True)
+            return self.video_processor.process_video(file_path, extract_frames=False)  # Skip frames for now
         
         # Excel
         elif ext in ['.xlsx', '.xls']:
@@ -359,12 +371,18 @@ class PDFIngestor:
                     "page": 0
                 })
         
-        self.collection.add(
-            embeddings=embeddings.tolist(),
-            documents=texts,
-            ids=[chunk["chunk_id"] for chunk in chunks],
-            metadatas=all_metadatas
-        )
+        try:
+            logger.info(f"Adding {len(chunks)} chunks to ChromaDB collection 'emini_docs'")
+            self.collection.add(
+                embeddings=embeddings.tolist(),
+                documents=texts,
+                ids=[chunk["chunk_id"] for chunk in chunks],
+                metadatas=all_metadatas
+            )
+            logger.info(f"Successfully added {len(chunks)} chunks to ChromaDB")
+        except Exception as e:
+            logger.error(f"Failed to add chunks to ChromaDB: {e}")
+            raise
     
     def _build_metadata(self, chunk: Dict[str, Any]) -> Dict[str, Any]:
         """Build Chroma-compatible metadata (only str, int, float, bool) - STRICT None filtering."""

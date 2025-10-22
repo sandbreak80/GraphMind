@@ -1,406 +1,303 @@
-# EminiPlayer RAG Service
+# EminiPlayer - Advanced RAG Trading System
 
-A production-ready Dockerized RAG (Retrieval-Augmented Generation) service for ingesting and querying **all EminiPlayer content** including PDFs, videos, Excel, and Word documents with GPU acceleration.
+A comprehensive Retrieval-Augmented Generation (RAG) system designed for trading strategy development, featuring multi-format document processing, video transcription, web search integration, and Obsidian note integration.
 
-## Features
+## 🚀 Features
 
-### 📚 Multi-Format Knowledge Extraction
-- **PDF Processing** (68 files): Docling with OCR fallback (OCRmyPDF + Tesseract) and PyMuPDF final fallback
-- **Video Transcription** (23 files): GPU-accelerated Whisper for audio + keyframe extraction for visual analysis
-- **Excel Spreadsheets** (2 files): Data, formulas, comments across all sheets
-- **Word Documents** (1 file): Structure-aware text, tables, headings
-- **Text Files**: Plain text chunking
+### Core RAG Capabilities
+- **Multi-Format Document Processing**: PDFs, Word docs, Excel files, text files
+- **Video Transcription**: MP4/WEBM support with GPU-accelerated Whisper
+- **LLM-Enhanced Processing**: AI-powered content enrichment and summarization
+- **Hybrid Retrieval**: BM25 + Embedding search + Cross-encoder reranking
+- **Vector Database**: ChromaDB with persistent storage
 
-### 🎯 Advanced Retrieval & Analysis
-- **Structure-Aware Chunking**: Preserves document structure (headings, sections, timestamps)
-- **Hybrid Retrieval**: BM25 prefilter → Embedding KNN → Cross-encoder reranking
-- **Local LLM Integration**: Connects to local Ollama for offline operation
-- **YAML Spec Extraction**: Extract structured trading strategy specifications
-- **GPU Acceleration**: CUDA-enabled for embeddings, reranking, and Whisper transcription
-- **Persistent Vector Store**: Chroma with Docker volume persistence
+### Integration Features
+- **Web Search**: SearXNG integration for real-time information
+- **Obsidian Integration**: Access personal notes via MCP protocol
+- **Ollama Integration**: Local LLM support with multiple models
+- **Modern Web UI**: Next.js frontend with chat interface
 
-**Total Coverage**: 97 files, ~3.8GB, ~1000+ pages of trading knowledge
+### Performance Optimizations
+- **GPU Acceleration**: NVIDIA CUDA support for embeddings and LLM
+- **Batch Processing**: Optimized for high-throughput processing
+- **Caching**: Aggressive caching for improved performance
+- **Memory Management**: Optimized for large document collections
 
-## Architecture
+## 🏗️ Architecture
 
 ```
-┌──────────────────────────────────────────────────────┐
-│  Input: 97 Files (PDFs, Videos, Excel, Word, Text)  │
-└──────────────────┬───────────────────────────────────┘
-                   │
-        ┌──────────┴──────────┐
-        │  Smart File Router  │
-        └──────────┬──────────┘
-                   │
-    ┌──────────────┼──────────────┐
-    │              │              │
-    ▼              ▼              ▼
-┌───────┐    ┌──────────┐   ┌─────────┐
-│  PDF  │    │  Video   │   │ Office  │
-│Docling│    │ Whisper  │   │ pandas/ │
-│ +OCR  │    │+Frames   │   │  docx   │
-└───┬───┘    └────┬─────┘   └────┬────┘
-    │             │              │
-    └─────────────┼──────────────┘
-                  │
-          ┌───────▼────────┐
-          │ Structure-Aware│
-          │    Chunking    │
-          └───────┬────────┘
-                  │
-          ┌───────▼────────┐
-          │ Chroma VectorDB│
-          │ bge-m3 embeddings
-          └───────┬────────┘
-                  │
-          ┌───────▼────────┐
-          │ Hybrid Retrieval│
-          │ BM25→KNN→Rerank│
-          └───────┬────────┘
-                  │
-          ┌───────▼────────┐
-          │  Ollama (Local)│
-          │  QA + Spec Gen │
-          └────────────────┘
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Frontend      │    │   Backend       │    │   External      │
+│   (Next.js)     │◄──►│   (FastAPI)     │◄──►│   Services      │
+│   Port: 3001    │    │   Port: 8001    │    │                 │
+└─────────────────┘    └─────────────────┘    │ • Ollama        │
+                              │                │ • SearXNG       │
+                              ▼                │ • Obsidian      │
+                       ┌─────────────────┐    │ • ChromaDB      │
+                       │   RAG Engine    │    └─────────────────┘
+                       │                 │
+                       │ • Document      │
+                       │   Processing    │
+                       │ • Embeddings    │
+                       │ • Retrieval     │
+                       │ • Reranking     │
+                       └─────────────────┘
 ```
 
-## Prerequisites
+## 📋 Prerequisites
 
-- Docker with GPU support (nvidia-docker2)
-- NVIDIA GPU with CUDA 12.x support (6-8GB VRAM recommended for videos)
-- Ollama running locally on host (default: http://localhost:11434)
-- Documents directory configured via `DOCUMENTS_DIR` environment variable (see `.env.template`)
+### System Requirements
+- **OS**: Linux (Ubuntu 20.04+ recommended)
+- **RAM**: 32GB+ (100GB recommended for large datasets)
+- **CPU**: 8+ cores (24 cores recommended)
+- **GPU**: NVIDIA GPU with CUDA support (RTX 4070+ recommended)
+- **Storage**: 100GB+ free space
 
-> 📋 **New to the project?** See [SETUP.md](SETUP.md) for detailed setup instructions.
-> 🔒 **Security concerns?** Review [SECURITY.md](SECURITY.md) for security best practices.
+### Software Requirements
+- Docker & Docker Compose
+- NVIDIA Container Toolkit
+- Git
 
-## Quick Start
+## 🚀 Quick Start
 
-### 1. Setup Environment
-
+### 1. Clone the Repository
 ```bash
-# Copy the environment template
+git clone https://github.com/yourusername/EminiPlayer.git
+cd EminiPlayer
+```
+
+### 2. Configure Environment
+```bash
 cp .env.template .env
-
-# Edit .env file with your configuration
-# At minimum, set DOCUMENTS_DIR to your document collection path
-nano .env
+# Edit .env with your configuration
 ```
 
-### 2. Install Ollama (if not already installed)
-
+### 3. Start Services
 ```bash
-curl -fsSL https://ollama.com/install.sh | sh
-ollama pull llama3.1
+# Start all services
+docker compose up -d
+
+# Check status
+docker compose ps
 ```
 
-### 3. Build and Run
+### 4. Access the System
+- **Frontend**: http://localhost:3001
+- **Backend API**: http://localhost:8001
+- **API Documentation**: http://localhost:8001/docs
 
+## 📚 Documentation
+
+### Core Components
+- [Setup Guide](SETUP.md) - Detailed installation instructions
+- [Frontend Setup](FRONTEND_SETUP.md) - Web interface configuration
+- [Production Deployment](PRODUCTION_DEPLOYMENT.md) - Production deployment guide
+
+### Integration Guides
+- [Obsidian Setup](OBSIDIAN_SETUP_GUIDE.md) - Personal notes integration
+- [SearXNG Integration](OBSIDIAN_API_SETUP.md) - Web search setup
+
+### Technical Documentation
+- [System Overview](FINAL_SYSTEM_OVERVIEW.md) - Complete system architecture
+- [Metadata Best Practices](METADATA_BEST_PRACTICES.md) - Data organization
+- [Security Guide](SECURITY.md) - Security considerations
+
+## 🔧 Configuration
+
+### Environment Variables
+
+#### Core Settings
 ```bash
-# Build the Docker image
-docker-compose build
+# Collection Configuration
+COLLECTION_NAME=emini_docs
 
-# Start the service
-docker-compose up -d
+# Retrieval Configuration (optimized for performance)
+BM25_TOP_K=20
+EMBEDDING_TOP_K=20
+RERANK_TOP_K=5
 
-# Check logs
-docker-compose logs -f
+# LLM Configuration
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+OLLAMA_MODEL=qwen2.5-coder:14b
+MAX_TOKENS=8000
+TEMPERATURE=0.1
 ```
 
-The service will be available at `http://localhost:8000`
-
-### 4. Ingest All Content (PDFs, Videos, Excel, Word, Text)
-
+#### Integration Settings
 ```bash
-curl -X POST http://localhost:8000/ingest \
-  -H "Content-Type: application/json" \
-  -d '{"force_reindex": false}'
+# Web Search
+SEARXNG_URL=http://192.168.50.236:8888/search
+
+# Obsidian Integration
+OBSIDIAN_API_URL=https://192.168.50.43:27124
+OBSIDIAN_API_KEY=your_api_key_here
+OBSIDIAN_VAULT_PATH=/workspace/obsidian_vault
 ```
 
-**⏱️ Processing Time**: 3-4 hours first run (23 videos with transcription + frame extraction)
+### Docker Compose Services
 
-Response:
-```json
-{
-  "status": "success",
-  "processed_files": 97,
-  "total_chunks": 8500,
-  "message": "Successfully ingested 97 files"
-}
-```
+#### rag-service
+- **Image**: Custom Python FastAPI application
+- **Port**: 8001
+- **Volumes**: 
+  - `./app:/workspace/app`
+  - `./chroma_db:/workspace/chroma_db`
+  - `./rag_docs_zone:/workspace/rag_docs_zone:ro`
+  - `./obsidian_vault:/workspace/obsidian_vault:ro`
 
-**What's being processed**:
-- 68 PDFs → Docling + OCR fallback
-- 23 Videos → Whisper transcription + keyframe extraction
-- 2 Excel files → Data + formulas + comments
-- 1 Word doc → Structure-aware text extraction
-- 1 Text file → Simple chunking
+#### frontend
+- **Image**: Custom Next.js application
+- **Port**: 3001
+- **Environment**: `NEXT_PUBLIC_API_URL=http://localhost:8001`
 
-### 4. Ask Questions (All Formats Searchable!)
+## 📊 Usage
 
-**Query PDFs**:
+### API Endpoints
+
+#### Core RAG Endpoints
+- `POST /ask` - Standard RAG query
+- `POST /ask-enhanced` - Enhanced RAG with web search
+- `POST /ask-obsidian` - RAG with Obsidian integration
+- `POST /ingest` - Document ingestion
+- `GET /stats` - System statistics
+
+#### Ollama Integration
+- `GET /ollama/models` - List available models
+- `POST /ollama/generate` - Generate text with Ollama
+
+#### Utility Endpoints
+- `GET /health` - Health check
+- `GET /` - API information
+
+### Frontend Interface
+
+The web interface provides:
+- **Chat Interface**: Interactive conversation with the RAG system
+- **Model Selection**: Choose from available Ollama models
+- **Feature Toggles**: Enable/disable RAG, web search, and Obsidian
+- **Settings Panel**: Configure API endpoints and preferences
+- **Chat History**: Persistent conversation history
+
+## 🔍 Document Processing
+
+### Supported Formats
+- **PDFs**: Using Docling for structure-aware extraction
+- **Videos**: MP4/WEBM with Whisper transcription
+- **Office Docs**: Word, Excel, PowerPoint
+- **Text Files**: Markdown, plain text
+
+### Processing Pipeline
+1. **Document Ingestion**: Multi-format document processing
+2. **Content Extraction**: Structure-aware chunking
+3. **AI Enrichment**: LLM-powered metadata generation
+4. **Embedding Generation**: BAAI/bge-m3 embeddings
+5. **Vector Storage**: ChromaDB with persistent storage
+
+### Video Processing
+- **Transcription**: GPU-accelerated Whisper
+- **LLM Enhancement**: AI-powered content enrichment
+- **Caching**: Processed transcripts cached to avoid reprocessing
+
+## 🚀 Performance Optimization
+
+### Retrieval Optimization
+- **Hybrid Search**: BM25 + Embedding + Reranking
+- **Batch Processing**: Optimized batch sizes for embeddings
+- **Caching**: Aggressive caching for models and embeddings
+- **Memory Management**: Efficient memory usage for large datasets
+
+### GPU Acceleration
+- **CUDA Support**: NVIDIA GPU acceleration
+- **Model Optimization**: Optimized model loading and inference
+- **Batch Processing**: GPU-optimized batch processing
+
+## 🔒 Security
+
+### Authentication
+- **API Keys**: Secure API key management
+- **CORS**: Configured cross-origin resource sharing
+- **HTTPS**: SSL/TLS support for production
+
+### Data Privacy
+- **Local Processing**: All processing done locally
+- **No External APIs**: No data sent to external services
+- **Secure Storage**: Encrypted storage for sensitive data
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+#### Collection Not Found
 ```bash
-curl -X POST http://localhost:8000/ask \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "What are the entry rules for the momentum breakout strategy?",
-    "mode": "qa",
-    "top_k": 5
-  }'
+# Check collection status
+curl http://localhost:8001/stats
+
+# Recreate collection
+docker exec emini-rag python3 -c "
+from app.ingest import PDFIngestor
+ingestor = PDFIngestor()
+ingestor.chroma_client.delete_collection('emini_docs')
+ingestor.collection = ingestor.chroma_client.create_collection('emini_docs')
+"
 ```
 
-**Query Videos** (with timestamps!):
+#### Performance Issues
 ```bash
-curl -X POST http://localhost:8000/ask \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "What did the instructor explain about momentum in the BootCamp videos?",
-    "mode": "qa",
-    "top_k": 10
-  }'
+# Check system resources
+docker stats
+
+# Monitor logs
+docker logs emini-rag --tail 50
+
+# Restart services
+docker compose restart
 ```
 
-Response includes answer with citations:
-```json
-{
-  "query": "...",
-  "answer": "In the BootCamp session, the instructor explained...",
-  "citations": [
-    {
-      "text": "[00:15:30 - 00:16:45] The key is to identify momentum shifts...",
-      "doc_id": "Mid",
-      "page": null,
-      "section": "Video @ 00:15:30 - 00:16:45",
-      "score": 0.92
-    },
-    {
-      "text": "...",
-      "doc_id": "momentum_strategy",
-      "page": 12,
-      "section": "Entry Rules",
-      "score": 0.89
-    }
-  ],
-  "mode": "qa"
-}
-```
-
-### 5. Extract Strategy Spec
-
+#### Frontend Issues
 ```bash
-curl -X POST http://localhost:8000/ask \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "Extract the opening range breakout strategy",
-    "mode": "spec",
-    "top_k": 10
-  }'
+# Check frontend logs
+docker logs emini-frontend --tail 50
+
+# Rebuild frontend
+docker compose build frontend
+docker compose up -d frontend
 ```
 
-Response:
-```json
-{
-  "query": "...",
-  "answer": "Strategy spec extracted and saved to /workspace/outputs/strategy_spec_...",
-  "citations": [...],
-  "mode": "spec",
-  "spec_file": "/workspace/outputs/strategy_spec_opening_range_20251014_120530.yaml"
-}
-```
+### Logs and Monitoring
+- **Backend Logs**: `docker logs emini-rag`
+- **Frontend Logs**: `docker logs emini-frontend`
+- **System Stats**: `docker stats`
+- **API Health**: `curl http://localhost:8001/health`
 
-## API Endpoints
+## 🤝 Contributing
 
-### `GET /`
-Health check endpoint.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
-### `POST /ingest`
-Ingest all PDFs from the mounted directory.
+## 📄 License
 
-**Request Body:**
-```json
-{
-  "force_reindex": false
-}
-```
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-### `POST /ask`
-Answer questions or extract specs.
+## 🙏 Acknowledgments
 
-**Request Body:**
-```json
-{
-  "query": "Your question here",
-  "mode": "qa",  // "qa" or "spec"
-  "top_k": 5
-}
-```
+- **Docling**: Advanced PDF processing
+- **ChromaDB**: Vector database
+- **Ollama**: Local LLM inference
+- **SearXNG**: Privacy-focused search
+- **Obsidian**: Personal knowledge management
+- **FastAPI**: Modern Python web framework
+- **Next.js**: React framework
 
-### `GET /stats`
-Get database statistics.
+## 📞 Support
 
-## Configuration
+For support and questions:
+- Create an issue on GitHub
+- Check the documentation
+- Review the troubleshooting guide
 
-Environment variables in `docker-compose.yml`:
+---
 
-```yaml
-environment:
-  # LLM
-  - OLLAMA_BASE_URL=http://host.docker.internal:11434
-  - OLLAMA_MODEL=llama3.1
-  
-  # Video Processing
-  - WHISPER_MODEL_SIZE=base              # tiny, base, small, medium, large
-  - VIDEO_FRAME_INTERVAL=30              # Extract keyframe every N seconds
-  
-  # GPU
-  - CUDA_VISIBLE_DEVICES=0
-```
-
-**Whisper Model Sizes**:
-- `tiny` - Fastest, ~1GB VRAM, good quality
-- `base` - **Default**, balanced speed/quality
-- `small` - Better accuracy, ~2GB VRAM
-- `medium` - High accuracy, ~5GB VRAM
-- `large` - Best accuracy, ~10GB VRAM
-
-## Volume Mounts
-
-- `${DOCUMENTS_DIR:-./documents}` → `/workspace/pdfs` (read-only, your document files)
-- `chroma-data` → `/workspace/chroma_db` (persistent vector store)
-- `${OUTPUT_DIR:-./outputs}` → `/workspace/outputs` (transcripts, frames, specs, markdown exports)
-
-**Check outputs after ingestion**:
-```bash
-ls -lh outputs/                    # Transcripts and markdown exports
-ls -lh outputs/frames/             # Extracted video keyframes
-```
-
-## Models Used
-
-- **Embeddings**: BAAI/bge-m3 (multilingual, 1024-dim)
-- **Reranker**: BAAI/bge-reranker-large (cross-encoder)
-- **LLM**: Ollama (configurable model, default llama3.1)
-
-## Retrieval Pipeline
-
-1. **BM25 Prefilter** (top 50): Fast keyword-based retrieval
-2. **Embedding KNN** (top 20): Semantic similarity search
-3. **Reranking** (top 5): Cross-encoder for final ranking
-
-## Chunking Strategy
-
-- Structure-aware chunking preserving:
-  - Headings and section titles
-  - Page numbers
-  - Document IDs
-- Chunk size: 800 chars
-- Overlap: 100 chars
-
-## Troubleshooting
-
-### GPU Not Detected
-```bash
-# Check NVIDIA runtime
-docker run --rm --gpus all nvidia/cuda:12.1.0-base nvidia-smi
-```
-
-### Ollama Connection Issues
-```bash
-# Test from container
-docker exec -it emini-rag curl http://host.docker.internal:11434/api/tags
-```
-
-### Video Transcription Slow or Out of Memory
-```bash
-# Reduce Whisper model size
-# In docker-compose.yml, set:
-- WHISPER_MODEL_SIZE=tiny
-
-# Or reduce frame extraction frequency
-- VIDEO_FRAME_INTERVAL=60
-```
-
-### Ingestion Failures
-Check logs for specific file failures:
-```bash
-docker-compose logs | grep -E "Failed|✗"
-
-# Check what processed successfully
-docker-compose logs | grep "✓"
-```
-
-### "No documents found" when querying
-Make sure ingestion completed:
-```bash
-curl -s http://localhost:8000/stats | jq
-# Should show total_documents > 0
-```
-
-## Development
-
-### Local Development (without Docker)
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Set environment variables
-export OLLAMA_BASE_URL=http://localhost:11434
-export OLLAMA_MODEL=llama3.1
-
-# Run service
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### Code Structure
-
-```
-.
-├── app/
-│   ├── main.py                # FastAPI application (~120 LOC)
-│   ├── config.py              # Configuration (~30 LOC)
-│   ├── models.py              # Pydantic models (~70 LOC)
-│   ├── ingest.py              # Multi-format ingestion (~250 LOC)
-│   ├── document_processor.py  # Excel, Word, Text (~200 LOC)
-│   ├── video_processor.py     # Whisper + frames (~250 LOC)
-│   ├── retrieval.py           # Hybrid retrieval (~260 LOC)
-│   └── spec_extraction.py     # YAML spec extraction (~200 LOC)
-├── Dockerfile
-├── docker-compose.yml
-├── requirements.txt
-├── README.md
-└── MULTIFORMAT_GUIDE.md       # Detailed multi-format docs
-```
-
-Total app code: ~1380 LOC
-
-## Performance
-
-### Ingestion Times
-- **PDFs**: ~2-5 seconds each (5-60s with OCR)
-- **Videos**: ~5-15 minutes each (transcription + frames)
-- **Excel/Word**: ~2-5 seconds each
-- **Total (97 files)**: 3-4 hours first run (includes Whisper model download)
-
-### Query Performance
-- **Query**: ~1-3 seconds (retrieval + LLM generation)
-- **Spec Extraction**: ~3-5 seconds (more context retrieved)
-
-### Resource Usage
-- **GPU Memory**: 
-  - Idle: ~2GB
-  - PDF Ingestion: ~4-6GB
-  - Video Transcription: ~6-8GB
-- **RAM**: 8-16GB
-- **Disk**: ~3.8GB input + ~1-2GB outputs (transcripts, frames)
-
-## License
-
-MIT
-
-## Support
-
-For issues or questions, check the logs:
-```bash
-docker-compose logs -f rag-service
-```
+**EminiPlayer** - Building the future of AI-powered trading strategy development.

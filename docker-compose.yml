@@ -9,27 +9,105 @@ services:
       - ${DOCUMENTS_DIR:-./documents}:/workspace/pdfs:ro
       - chroma-data:/workspace/chroma_db
       - ${OUTPUT_DIR:-./outputs}:/workspace/outputs
+      # Mount Obsidian vault for MCP integration
+      - /home/brad/obsidian-bstoner:/workspace/obsidian_vault:ro
+      # Mount rag_docs_zone for comprehensive ingestion
+      - /home/brad/rag_docs_zone:/workspace/rag_docs_zone:ro
     environment:
-      # LLM Configuration
+      # High-Performance LLM Configuration (100GB RAM + 24 CPU cores)
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
-      - OLLAMA_MODEL=llama3.1
+      - OLLAMA_MODEL=qwen2.5-coder:14b
+      - PRODUCTION_LLM_MODEL=qwen2.5-coder:14b
+      - VIDEO_ENRICHMENT_MODEL=qwen2.5-coder:14b
+      - PDF_ENRICHMENT_MODEL=gpt-oss:20b
+      - CHUNK_ENRICHMENT_MODEL=llama3.1:latest
+      
+      # Enhanced Response Configuration
+      - MAX_TOKENS=8000
+      - TEMPERATURE=0.1
+      - TOP_P=0.9
+      - LLM_TIMEOUT=300
+      
+      # Collection Configuration
+      - COLLECTION_NAME=emini_docs
+      
+      # High-Performance Retrieval Configuration (optimized for speed)
+      - BM25_TOP_K=20
+      - EMBEDDING_TOP_K=20
+      - RERANK_TOP_K=5
+      - MAX_WORKERS=20
+      - BATCH_SIZE=32
+      - EMBEDDING_BATCH_SIZE=64
+      
+      # Aggressive Caching Configuration
+      - ENABLE_AGGRESSIVE_CACHING=true
+      - CACHE_EMBEDDINGS=true
+      - CACHE_BM25_INDEX=true
+      - CACHE_RERANKER=true
+      
+      # Ollama Performance Optimization
+      - OLLAMA_NUM_CTX=32768
+      - OLLAMA_NUM_GPU=2
+      - OLLAMA_NUM_THREAD=20
+      - OLLAMA_NUM_BATCH=512
+      - OLLAMA_NUM_PREDICT=8000
+      - OLLAMA_TOP_K=40
+      - OLLAMA_TOP_P=0.9
+      - OLLAMA_REPEAT_PENALTY=1.1
+      - OLLAMA_TEMPERATURE=0.1
+      
+      # SearXNG Integration
+      - SEARXNG_URL=http://192.168.50.236:8888
       
       # Video Processing
-      - WHISPER_MODEL_SIZE=base              # tiny, base, small, medium, large
-      - VIDEO_FRAME_INTERVAL=30              # Extract keyframe every N seconds
+      - WHISPER_MODEL_SIZE=base
+      - VIDEO_FRAME_INTERVAL=30
       
-      # Retrieval Configuration (Optimized for 90%+ Recall)
-      - BM25_TOP_K=200                       # Cast wider net for keyword search
-      - EMBEDDING_TOP_K=100                  # Increased from 20 for high recall
-      - RERANK_TOP_K=10                      # More final results
-      - MIN_SIMILARITY_THRESHOLD=0.3         # Filter low-relevance results
+      # Retrieval Configuration (High-Performance)
+      - MIN_SIMILARITY_THRESHOLD=0.3
       
-      # GPU
-      - CUDA_VISIBLE_DEVICES=0
+      # GPU Configuration (Both RTX 5070 and RTX 4070)
+      - CUDA_VISIBLE_DEVICES=0,1
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      
+      # Web Search Configuration (optional)
+      - SERPER_API_KEY=${SERPER_API_KEY:-}
+      
+      # MCP Integration (optional)
+      - MCP_SERVER_URL=${MCP_SERVER_URL:-}
+      - MCP_API_KEY=${MCP_API_KEY:-}
+      
+      # Obsidian MCP Integration
+      - OBSIDIAN_VAULT_PATH=/workspace/obsidian_vault
+      - OBSIDIAN_API_URL=https://192.168.50.43:27124
+      - OBSIDIAN_API_KEY=6f5c25819efb4ac5c9b092a8a0f2726d90d32e63b8d5d8aa674f4801fed69254
+    deploy:
+      resources:
+        limits:
+          memory: 80G  # Use most of 100GB RAM
+        reservations:
+          memory: 40G
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: emini-frontend
+    ports:
+      - "3001:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=https://emini.riffyx.com
+      - NODE_ENV=production
+    depends_on:
+      - rag-service
+    restart: unless-stopped
 
 volumes:
   chroma-data:

@@ -1,4 +1,4 @@
-"""Hybrid retrieval with BM25, embeddings, and reranking."""
+"""High-performance hybrid retrieval with BM25, embeddings, and reranking."""
 import logging
 from typing import List, Dict, Any
 import chromadb
@@ -6,12 +6,20 @@ from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer, CrossEncoder
 from rank_bm25 import BM25Okapi
 import requests
+import asyncio
+import concurrent.futures
+from functools import lru_cache
+import threading
+import time
+import numpy as np
 
 from app.config import (
-    CHROMA_DIR, EMBEDDING_MODEL, RERANKER_MODEL,
+    CHROMA_DIR, EMBEDDING_MODEL, RERANKER_MODEL, COLLECTION_NAME,
     BM25_TOP_K, EMBEDDING_TOP_K, RERANK_TOP_K,
     MIN_SIMILARITY_THRESHOLD,
-    OLLAMA_BASE_URL, OLLAMA_MODEL
+    OLLAMA_BASE_URL, OLLAMA_MODEL,
+    MAX_WORKERS, BATCH_SIZE, EMBEDDING_BATCH_SIZE,
+    ENABLE_AGGRESSIVE_CACHING, CACHE_EMBEDDINGS, CACHE_BM25_INDEX, CACHE_RERANKER
 )
 from app.models import Citation
 from app.metrics import RetrievalMetrics
@@ -20,27 +28,49 @@ logger = logging.getLogger(__name__)
 
 
 class HybridRetriever:
-    """Hybrid retrieval combining BM25, embeddings, and reranking."""
+    """High-performance hybrid retrieval with parallel processing and aggressive caching."""
     
     def __init__(self):
         """Initialize retriever with models and Chroma."""
+        # Initialize ChromaDB with persistent client
         self.chroma_client = chromadb.PersistentClient(
             path=str(CHROMA_DIR),
             settings=Settings(anonymized_telemetry=False)
         )
         self.collection = self.chroma_client.get_or_create_collection(
-            name="emini_docs",
+            name=COLLECTION_NAME,
             metadata={"hnsw:space": "cosine"}
         )
         
-        self.embedding_model = SentenceTransformer(EMBEDDING_MODEL)
-        self.reranker = CrossEncoder(RERANKER_MODEL)
+        # Initialize models with caching
+        self.embedding_model = self._load_embedding_model()
+        self.reranker = self._load_reranker()
         self.metrics = RetrievalMetrics()
+        
+        # Initialize thread pool for parallel processing
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS)
+        
+        # Initialize caches
+        self.embedding_cache = {}
+        self.bm25_cache = {}
+        self.reranker_cache = {}
         
         # Initialize BM25 index
         self._build_bm25_index()
-        logger.info("Hybrid retriever initialized")
+        logger.info(f"High-performance HybridRetriever initialized with {MAX_WORKERS} workers")
         logger.info(f"Retrieval config: BM25={BM25_TOP_K}, Embedding={EMBEDDING_TOP_K}, Rerank={RERANK_TOP_K}")
+    
+    def _load_embedding_model(self):
+        """Load embedding model with caching enabled."""
+        if CACHE_EMBEDDINGS:
+            return SentenceTransformer(EMBEDDING_MODEL, cache_folder="/tmp/embeddings_cache")
+        return SentenceTransformer(EMBEDDING_MODEL)
+    
+    def _load_reranker(self):
+        """Load reranker with caching enabled."""
+        if CACHE_RERANKER:
+            return CrossEncoder(RERANKER_MODEL, cache_folder="/tmp/reranker_cache")
+        return CrossEncoder(RERANKER_MODEL)
     
     def _build_bm25_index(self):
         """Build BM25 index from Chroma collection."""
@@ -198,23 +228,42 @@ class HybridRetriever:
         return merged
     
     def _rerank(self, query: str, results: List[Dict], top_k: int) -> List[Dict[str, Any]]:
-        """Rerank results using cross-encoder."""
+        """Rerank results using cross-encoder with batch processing for speed."""
         if not results:
             return []
         
-        # Prepare pairs for reranking
-        pairs = [[query, result['text']] for result in results]
+        # Limit results to process for faster reranking
+        max_rerank = min(len(results), 50)  # Process max 50 results for speed
+        results_to_rerank = results[:max_rerank]
         
-        # Get reranking scores
-        rerank_scores = self.reranker.predict(pairs)
+        # Prepare pairs for reranking
+        pairs = [[query, result['text']] for result in results_to_rerank]
+        
+        # Get reranking scores with batch processing
+        batch_size = 16  # Smaller batch size for faster processing
+        rerank_scores = []
+        
+        for i in range(0, len(pairs), batch_size):
+            batch_pairs = pairs[i:i + batch_size]
+            batch_scores = self.reranker.predict(batch_pairs)
+            rerank_scores.extend(batch_scores)
         
         # Sort by rerank score
-        for i, result in enumerate(results):
+        for i, result in enumerate(results_to_rerank):
             result['rerank_score'] = float(rerank_scores[i])
         
-        results.sort(key=lambda x: x['rerank_score'], reverse=True)
+        results_to_rerank.sort(key=lambda x: x['rerank_score'], reverse=True)
         
-        return results[:top_k]
+        # Add remaining results without reranking
+        remaining_results = results[max_rerank:]
+        for result in remaining_results:
+            result['rerank_score'] = 0.0  # Default score for non-reranked results
+        
+        # Combine and sort all results
+        all_results = results_to_rerank + remaining_results
+        all_results.sort(key=lambda x: x['rerank_score'], reverse=True)
+        
+        return all_results[:top_k]
     
     def answer_query(self, query: str, top_k: int = 5) -> Dict[str, Any]:
         """Answer query using retrieved context and Ollama."""
@@ -260,37 +309,58 @@ class HybridRetriever:
         }
     
     def _generate_answer(self, query: str, context: str) -> str:
-        """Generate answer using Ollama."""
-        prompt = f"""Based on the following context from EminiPlayer documentation, answer the question.
+        """Generate comprehensive trading analysis using production-grade LLM."""
+        from app.config import PRODUCTION_LLM_MODEL, MAX_TOKENS, TEMPERATURE, TOP_P, TIMEOUT
+        
+        prompt = f"""You are an expert quantitative trading analyst with deep knowledge of Emini futures trading strategies. Analyze the provided context and provide a comprehensive, actionable response for building a production trading bot.
 
-Context:
+CONTEXT FROM TRADING DOCUMENTATION:
 {context}
 
-Question: {query}
+TRADING QUESTION: {query}
 
-Provide a clear, accurate answer based on the context. If the context doesn't contain enough information, say so.
+REQUIREMENTS FOR PRODUCTION TRADING BOT:
+1. Provide specific, quantifiable entry and exit rules
+2. Include risk management parameters (stop loss, position sizing)
+3. Specify market conditions and timeframes
+4. Give concrete examples with price levels or indicators
+5. Explain the logic and reasoning behind each rule
+6. Identify any potential edge cases or exceptions
+7. Suggest implementation considerations for automated trading
 
-Answer:"""
-        
+RESPONSE FORMAT:
+- **Strategy Overview**: Brief description
+- **Entry Rules**: Specific, programmable conditions
+- **Exit Rules**: Clear profit-taking and stop-loss criteria
+- **Risk Management**: Position sizing and risk parameters
+- **Market Conditions**: When this strategy applies
+- **Implementation Notes**: Technical considerations for bot development
+- **Edge Cases**: Potential issues and how to handle them
+
+Provide a detailed, actionable analysis suitable for building a production trading algorithm."""
+
         try:
             response = requests.post(
                 f"{OLLAMA_BASE_URL}/api/generate",
                 json={
-                    "model": OLLAMA_MODEL,
+                    "model": PRODUCTION_LLM_MODEL,
                     "prompt": prompt,
                     "stream": False,
                     "options": {
-                        "temperature": 0.3,
-                        "num_predict": 500
+                        "temperature": TEMPERATURE,
+                        "num_predict": MAX_TOKENS,
+                        "top_p": TOP_P,
+                        "repeat_penalty": 1.1,
+                        "stop": ["Human:", "User:", "Question:"]
                     }
                 },
-                timeout=60
+                timeout=TIMEOUT
             )
             response.raise_for_status()
             return response.json()['response']
         except Exception as e:
-            logger.error(f"Ollama generation failed: {e}")
-            return f"Error generating answer: {str(e)}"
+            logger.error(f"Production LLM generation failed: {e}")
+            return f"Error generating trading analysis: {str(e)}"
     
     def get_stats(self) -> Dict[str, Any]:
         """Get collection statistics."""

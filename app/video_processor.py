@@ -1,4 +1,4 @@
-"""Process video files with audio transcription and frame analysis."""
+"""Process video files with audio transcription, LLM enrichment, and frame analysis."""
 import logging
 from pathlib import Path
 from typing import List, Dict, Any, Optional
@@ -8,16 +8,17 @@ from faster_whisper import WhisperModel
 from PIL import Image
 import json
 
-from app.config import OUTPUT_DIR, VIDEO_FRAME_INTERVAL, WHISPER_MODEL_SIZE
+from app.config import OUTPUT_DIR, VIDEO_FRAME_INTERVAL, WHISPER_MODEL_SIZE, AI_ENRICHMENT_ENABLED
+from app.enrichment import KnowledgeEnricher
 
 logger = logging.getLogger(__name__)
 
 
 class VideoProcessor:
-    """Process videos with transcription and visual analysis."""
+    """Process videos with transcription, LLM enrichment, and visual analysis."""
     
     def __init__(self):
-        """Initialize with Whisper model (GPU-accelerated)."""
+        """Initialize with Whisper model and LLM enricher."""
         try:
             # Use GPU if available, fallback to CPU
             self.whisper_model = WhisperModel(
@@ -29,13 +30,22 @@ class VideoProcessor:
         except Exception as e:
             logger.warning(f"GPU Whisper failed, using CPU: {e}")
             self.whisper_model = WhisperModel(WHISPER_MODEL_SIZE, device="cpu")
+        
+        # Initialize LLM enricher for video transcripts
+        if AI_ENRICHMENT_ENABLED:
+            self.enricher = KnowledgeEnricher()
+            logger.info("Initialized LLM enricher for video processing")
+        else:
+            self.enricher = None
+            logger.info("LLM enrichment disabled for video processing")
     
     def process_video(self, file_path: Path, extract_frames: bool = True) -> List[Dict[str, Any]]:
         """
         Process video file:
         1. Extract audio and transcribe with timestamps
-        2. Extract keyframes for visual analysis
-        3. Combine into searchable chunks
+        2. Process transcript with LLM for key insights
+        3. Extract keyframes for visual analysis (optional)
+        4. Combine into searchable chunks
         """
         chunks = []
         doc_id = file_path.stem
@@ -46,14 +56,20 @@ class VideoProcessor:
             transcript_chunks = self._transcribe_audio(file_path, doc_id)
             chunks.extend(transcript_chunks)
             
-            # Step 2: Extract keyframes (optional - can be heavy)
+            # Step 2: Save full transcript
+            transcript_path = self._save_transcript(doc_id, transcript_chunks)
+            
+            # Step 3: Process transcript with LLM for key insights
+            if self.enricher and transcript_path:
+                logger.info(f"Processing transcript with LLM for {file_path.name}...")
+                llm_chunks = self._process_transcript_with_llm(transcript_path, doc_id)
+                chunks.extend(llm_chunks)
+            
+            # Step 4: Extract keyframes (optional - can be heavy)
             if extract_frames:
                 logger.info(f"Extracting keyframes from {file_path.name}...")
                 frame_chunks = self._extract_keyframes(file_path, doc_id)
                 chunks.extend(frame_chunks)
-            
-            # Save full transcript
-            self._save_transcript(doc_id, transcript_chunks)
             
             logger.info(f"Processed video {file_path.name}: {len(chunks)} chunks")
             return chunks
@@ -242,7 +258,7 @@ class VideoProcessor:
         secs = int(seconds % 60)
         return f"{hours:02d}:{minutes:02d}:{secs:02d}"
     
-    def _save_transcript(self, doc_id: str, transcript_chunks: List[Dict[str, Any]]):
+    def _save_transcript(self, doc_id: str, transcript_chunks: List[Dict[str, Any]]) -> Optional[Path]:
         """Save full transcript to file."""
         try:
             transcript_path = OUTPUT_DIR / f"{doc_id}_transcript.txt"
@@ -256,6 +272,118 @@ class VideoProcessor:
             
             transcript_path.write_text("".join(lines))
             logger.info(f"Saved transcript to {transcript_path}")
+            return transcript_path
             
         except Exception as e:
             logger.error(f"Failed to save transcript: {e}")
+            return None
+    
+    def _process_transcript_with_llm(self, transcript_path: Path, doc_id: str) -> List[Dict[str, Any]]:
+        """
+        Process video transcript with LLM to extract key insights and create enriched chunks.
+        
+        Args:
+            transcript_path: Path to transcript file
+            doc_id: Document identifier
+            
+        Returns:
+            List of enriched chunks from LLM processing
+        """
+        chunks = []
+        
+        try:
+            # Get LLM enrichment
+            enrichment = self.enricher.enrich_video_transcript(transcript_path)
+            
+            # Create chunks from LLM insights
+            llm_chunks = []
+            
+            # 1. Summary chunk
+            if enrichment.get("summary"):
+                summary_chunk = {
+                    "text": f"Video Summary: {enrichment['summary']}",
+                    "doc_id": doc_id,
+                    "page": 0,
+                    "section": "LLM Summary",
+                    "chunk_id": f"{doc_id}_summary",
+                    "content_type": "llm_summary",
+                    "extraction_method": "llm_enrichment",
+                    "media_type": "video_insights",
+                    "ai_enriched": True,
+                    "ai_summary": enrichment["summary"],
+                    "ai_category": enrichment.get("topic_category", ""),
+                    "ai_difficulty": enrichment.get("difficulty", "")
+                }
+                llm_chunks.append(summary_chunk)
+            
+            # 2. Key concepts chunk
+            if enrichment.get("key_concepts"):
+                concepts_text = "Key Concepts: " + ", ".join(enrichment["key_concepts"])
+                concepts_chunk = {
+                    "text": concepts_text,
+                    "doc_id": doc_id,
+                    "page": 0,
+                    "section": "LLM Key Concepts",
+                    "chunk_id": f"{doc_id}_concepts",
+                    "content_type": "llm_concepts",
+                    "extraction_method": "llm_enrichment",
+                    "media_type": "video_insights",
+                    "ai_enriched": True,
+                    "ai_concepts": ", ".join(enrichment["key_concepts"])
+                }
+                llm_chunks.append(concepts_chunk)
+            
+            # 3. Strategies chunk
+            if enrichment.get("strategies"):
+                strategies_text = "Trading Strategies: " + ", ".join(enrichment["strategies"])
+                strategies_chunk = {
+                    "text": strategies_text,
+                    "doc_id": doc_id,
+                    "page": 0,
+                    "section": "LLM Strategies",
+                    "chunk_id": f"{doc_id}_strategies",
+                    "content_type": "llm_strategies",
+                    "extraction_method": "llm_enrichment",
+                    "media_type": "video_insights",
+                    "ai_enriched": True
+                }
+                llm_chunks.append(strategies_chunk)
+            
+            # 4. Action items chunk
+            if enrichment.get("action_items"):
+                actions_text = "Action Items: " + ", ".join(enrichment["action_items"])
+                actions_chunk = {
+                    "text": actions_text,
+                    "doc_id": doc_id,
+                    "page": 0,
+                    "section": "LLM Action Items",
+                    "chunk_id": f"{doc_id}_actions",
+                    "content_type": "llm_actions",
+                    "extraction_method": "llm_enrichment",
+                    "media_type": "video_insights",
+                    "ai_enriched": True
+                }
+                llm_chunks.append(actions_chunk)
+            
+            # 5. Technical indicators chunk
+            if enrichment.get("indicators"):
+                indicators_text = "Technical Indicators: " + ", ".join(enrichment["indicators"])
+                indicators_chunk = {
+                    "text": indicators_text,
+                    "doc_id": doc_id,
+                    "page": 0,
+                    "section": "LLM Indicators",
+                    "chunk_id": f"{doc_id}_indicators",
+                    "content_type": "llm_indicators",
+                    "extraction_method": "llm_enrichment",
+                    "media_type": "video_insights",
+                    "ai_enriched": True
+                }
+                llm_chunks.append(indicators_chunk)
+            
+            logger.info(f"Created {len(llm_chunks)} LLM-enriched chunks for {doc_id}")
+            return llm_chunks
+            
+        except Exception as e:
+            logger.error(f"Failed to process transcript with LLM for {doc_id}: {e}")
+            return []

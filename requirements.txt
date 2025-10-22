@@ -34,6 +34,7 @@ rank-bm25
 # LLM Integration
 requests>=2.32.3
 httpx
+aiohttp>=3.8.0
 
 # ML/NLP
 torch
