@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { useStore } from '@/lib/store'
 import { 
   PlusIcon, 
@@ -20,22 +19,6 @@ export function Sidebar() {
     createChat,
     deleteChat 
   } = useStore()
-  const [newChatTitle, setNewChatTitle] = useState('')
-  const [showNewChat, setShowNewChat] = useState(false)
-
-  const handleCreateChat = () => {
-    if (newChatTitle.trim()) {
-      createChat(newChatTitle.trim())
-      setNewChatTitle('')
-      setShowNewChat(false)
-    }
-  }
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleCreateChat()
-    }
-  }
 
   if (!sidebarOpen) return null
 
@@ -55,44 +38,16 @@ export function Sidebar() {
           </button>
         </div>
         
-        {showNewChat ? (
-          <div className="space-y-2">
-            <input
-              type="text"
-              value={newChatTitle}
-              onChange={(e) => setNewChatTitle(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Chat title..."
-              className="input w-full"
-              autoFocus
-            />
-            <div className="flex space-x-2">
-              <button
-                onClick={handleCreateChat}
-                className="btn btn-primary flex-1"
-              >
-                Create
-              </button>
-              <button
-                onClick={() => {
-                  setShowNewChat(false)
-                  setNewChatTitle('')
-                }}
-                className="btn btn-secondary flex-1"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button
-            onClick={() => setShowNewChat(true)}
-            className="btn btn-primary w-full flex items-center justify-center space-x-2"
-          >
-            <PlusIcon className="h-4 w-4" />
-            <span>New Chat</span>
-          </button>
-        )}
+        <button
+          onClick={() => {
+            const { createChat } = useStore.getState()
+            createChat('New Chat')
+          }}
+          className="btn btn-primary w-full flex items-center justify-center space-x-2"
+        >
+          <PlusIcon className="h-4 w-4" />
+          <span>New Chat</span>
+        </button>
       </div>
 
       {/* Chat List */}
