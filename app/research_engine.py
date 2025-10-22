@@ -372,10 +372,8 @@ class AdvancedResearchEngine:
                     for msg in recent_context
                 ])
             
-            # Create research-focused prompt
-            prompt = f"""You are an expert research analyst with deep expertise in business analysis, financial research, and market intelligence. Your task is to provide comprehensive, well-researched responses based on the provided data.
-
-RESEARCH QUESTION: {user_query}
+            # Create simple prompt with just the data
+            prompt = f"""RESEARCH QUESTION: {user_query}
 
 DOCUMENT CONTEXT:
 {doc_context}
@@ -383,26 +381,7 @@ DOCUMENT CONTEXT:
 WEB RESEARCH DATA:
 {web_context}
 
-{conversation_context}
-
-INSTRUCTIONS:
-- Provide a comprehensive, well-structured research response
-- Use the provided data to support your analysis with specific facts and examples
-- Structure your response with clear sections and bullet points where appropriate
-- Include relevant metrics, data points, and concrete examples
-- Maintain a professional, analytical tone
-- Cite specific information from the sources when relevant
-- If data is limited, acknowledge this and provide what analysis is possible
-- Focus on actionable insights and key findings
-
-RESPONSE GUIDELINES:
-- Start with a clear executive summary if appropriate
-- Use professional formatting (headings, bullet points, etc.)
-- Include specific data, numbers, and examples
-- Provide balanced analysis with both strengths and areas for improvement
-- End with key takeaways or recommendations when relevant
-
-Provide a thorough, well-researched response that demonstrates deep analysis and professional research capabilities."""
+{conversation_context}"""
 
             # Generate response using research-optimized LLM
             response = self.ollama.generate(

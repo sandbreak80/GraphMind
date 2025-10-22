@@ -207,11 +207,24 @@ export const useStore = create<AppState>()(
       },
       
       updateMessage: (id, updates) => {
-        set(state => ({
-          messages: state.messages.map(msg => 
+        set(state => {
+          const updatedMessages = state.messages.map(msg => 
             msg.id === id ? { ...msg, ...updates } : msg
           )
-        }))
+          
+          // Also update the chat object to persist changes
+          const updatedChats = state.chats.map(chat => {
+            if (chat.id === state.currentChatId) {
+              return { ...chat, messages: updatedMessages, updatedAt: new Date().toISOString() }
+            }
+            return chat
+          })
+          
+          return {
+            messages: updatedMessages,
+            chats: updatedChats
+          }
+        })
       },
       
       createChat: (title) => {
