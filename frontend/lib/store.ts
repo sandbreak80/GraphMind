@@ -94,6 +94,7 @@ interface AppState {
   deleteChat: (chatId: string) => void
   clearMessages: () => void
   setProcessing: (processing: boolean) => void
+  retryLastMessage: () => void
   
   setModels: (models: OllamaModel[]) => void
   setSelectedModel: (model: string) => void
@@ -155,9 +156,19 @@ export const useStore = create<AppState>()(
       // Actions
       setCurrentChat: (chatId) => {
         const chat = get().chats.find(c => c.id === chatId)
+        const messages = chat?.messages || []
+        
+        // Clean up any processing messages from the loaded chat
+        const cleanedMessages = messages.map(msg => ({
+          ...msg,
+          isProcessing: false
+        }))
+        
         set({
           currentChatId: chatId,
-          messages: chat?.messages || []
+          messages: cleanedMessages,
+          isProcessing: false,
+          isStreaming: false
         })
       },
       
@@ -240,6 +251,18 @@ export const useStore = create<AppState>()(
       
       setProcessing: (processing) => {
         set({ isProcessing: processing })
+      },
+      
+      retryLastMessage: () => {
+        const state = get()
+        const lastMessage = state.messages[state.messages.length - 1]
+        
+        if (lastMessage && lastMessage.role === 'assistant' && lastMessage.isProcessing) {
+          // Remove the processing message
+          set(state => ({
+            messages: state.messages.slice(0, -1)
+          }))
+        }
       },
       
       // Authentication actions
