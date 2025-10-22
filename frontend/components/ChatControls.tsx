@@ -5,12 +5,13 @@ import {
   GlobeAltIcon, 
   DocumentTextIcon, 
   BookOpenIcon,
-  Cog6ToothIcon
+  Cog6ToothIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline'
 
 interface ChatControlsProps {
-  selectedMode: 'obsidian-only' | 'rag-only' | 'web-only'
-  onModeChange: (mode: 'obsidian-only' | 'rag-only' | 'web-only') => void
+  selectedMode: 'obsidian-only' | 'rag-only' | 'web-only' | 'research'
+  onModeChange: (mode: 'obsidian-only' | 'rag-only' | 'web-only' | 'research') => void
 }
 
 export function ChatControls({ selectedMode, onModeChange }: ChatControlsProps) {
@@ -37,6 +38,13 @@ export function ChatControls({ selectedMode, onModeChange }: ChatControlsProps) 
       description: 'Search only the web for real-time information',
       icon: GlobeAltIcon,
       enabled: settings.enableWebSearch
+    },
+    {
+      id: 'research' as const,
+      name: 'Comprehensive Research',
+      description: 'Deep research combining documents, web, and intelligent analysis',
+      icon: MagnifyingGlassIcon,
+      enabled: true
     }
   ]
 

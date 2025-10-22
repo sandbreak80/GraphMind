@@ -95,6 +95,11 @@ export const apiClient = {
     return data
   },
 
+  async askResearch(request: AskRequest): Promise<AskResponse> {
+    const { data } = await api.post('/ask-research', { request })
+    return data
+  },
+
   // Ollama endpoints
   async getModels(): Promise<{ models: OllamaModel[] }> {
     const { data } = await api.get('/ollama/models')

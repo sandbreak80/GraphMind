@@ -16,6 +16,7 @@ from app.mcp_integration import create_mcp_client, EnhancedRAGWithMCP
 from app.searxng_client import create_searxng_client, EnhancedRAGWithSearXNG
 from app.obsidian_mcp_client import create_obsidian_client, EnhancedRAGWithObsidian
 from app.query_generator import IntelligentQueryGenerator, EnhancedWebSearch
+from app.research_engine import ComprehensiveResearchSystem
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -30,12 +31,13 @@ searxng_rag: Optional[EnhancedRAGWithSearXNG] = None
 obsidian_rag: Optional[EnhancedRAGWithObsidian] = None
 query_generator: Optional[IntelligentQueryGenerator] = None
 enhanced_web_search: Optional[EnhancedWebSearch] = None
+comprehensive_research: Optional[ComprehensiveResearchSystem] = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize services on startup."""
-    global ingestor, retriever, spec_extractor, enhanced_rag, mcp_rag, searxng_rag, obsidian_rag, query_generator, enhanced_web_search
+    global ingestor, retriever, spec_extractor, enhanced_rag, mcp_rag, searxng_rag, obsidian_rag, query_generator, enhanced_web_search, comprehensive_research
     
     logger.info("Initializing high-performance RAG service...")
     ingestor = PDFIngestor()
@@ -53,8 +55,10 @@ async def lifespan(app: FastAPI):
     if searxng_client:
         searxng_rag = EnhancedRAGWithSearXNG(retriever, searxng_client)
         enhanced_web_search = EnhancedWebSearch(searxng_client, query_generator)
+        comprehensive_research = ComprehensiveResearchSystem(retriever, searxng_client, query_generator)
         logger.info(f"SearXNG integration enabled at {searxng_url}")
         logger.info("Enhanced web search with intelligent query generation enabled")
+        logger.info("Comprehensive research system enabled")
     
     # Initialize enhanced RAG with web search (fallback)
     web_search_provider = create_web_search_provider()
@@ -333,6 +337,93 @@ async def generate_search_queries(request: AskRequest, current_user: dict = get_
         
     except Exception as e:
         logger.error(f"Query generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/ask-research", response_model=AskResponse)
+async def ask_research_question(request: AskRequest, current_user: dict = get_current_user):
+    """Ask a question with comprehensive research capabilities."""
+    try:
+        # Use comprehensive research system if available
+        if comprehensive_research:
+            # Prepare conversation history
+            conversation_history = None
+            if request.conversation_history:
+                conversation_history = [
+                    {"role": msg.role, "content": msg.content} 
+                    for msg in request.conversation_history
+                ]
+            
+            # Conduct comprehensive research
+            research_result = comprehensive_research.conduct_comprehensive_research(
+                request.query, 
+                conversation_history
+            )
+            
+            # Generate answer using comprehensive context
+            doc_context = "\n".join([r['text'] for r in research_result["document_results"]])
+            web_context = "\n".join([r.get('content', '') for r in research_result["web_results"]])
+            
+            combined_context = f"DOCUMENT CONTEXT:\n{doc_context}\n\nCOMPREHENSIVE WEB RESEARCH:\n{web_context}"
+            
+            # Generate answer using production LLM
+            answer = retriever._generate_answer(request.query, combined_context, conversation_history)
+            
+            # Combine citations
+            doc_citations = [
+                Citation(
+                    text=r['text'][:200] + "...",
+                    doc_id=r['metadata'].get('doc_id') or r['metadata'].get('file_name', 'unknown'),
+                    page=r['metadata'].get('page'),
+                    section=r['metadata'].get('section') or r['metadata'].get('doc_type', 'unknown'),
+                    score=r['rerank_score']
+                )
+                for r in research_result["document_results"]
+            ]
+            
+            web_citations = [
+                Citation(
+                    text=r.get('content', r.get('title', ''))[:200] + "...",
+                    doc_id=f"web_{i}",
+                    page=None,
+                    section=r.get('title', 'Web Source'),
+                    score=r.get('score', 0.5)
+                )
+                for i, r in enumerate(research_result["web_results"])
+            ]
+            
+            all_citations = doc_citations + web_citations
+            
+            return AskResponse(
+                query=request.query,
+                answer=answer,
+                citations=all_citations,
+                mode="research",
+                web_enabled=True,
+                total_sources=len(research_result["document_results"]) + len(research_result["web_results"]),
+                search_metadata={
+                    "research_queries": research_result.get('research_queries', []),
+                    "research_metadata": research_result.get('research_metadata', {}),
+                    "total_queries": research_result.get('research_metadata', {}).get('total_queries', 0),
+                    "successful_queries": research_result.get('research_metadata', {}).get('successful_queries', 0)
+                }
+            )
+        else:
+            # Fallback to standard search
+            result = retriever.answer_query(
+                query=request.query,
+                top_k=request.top_k
+            )
+            return AskResponse(
+                query=request.query,
+                answer=result["answer"],
+                citations=result["citations"],
+                mode="qa",
+                web_enabled=False
+            )
+            
+    except Exception as e:
+        logger.error(f"Research query failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

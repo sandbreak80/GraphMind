@@ -19,7 +19,7 @@ export function ChatInterface() {
   } = useStore()
   
   const [inputValue, setInputValue] = useState('')
-  const [selectedMode, setSelectedMode] = useState<'obsidian-only' | 'rag-only' | 'web-only'>('obsidian-only')
+  const [selectedMode, setSelectedMode] = useState<'obsidian-only' | 'rag-only' | 'web-only' | 'research'>('obsidian-only')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -96,6 +96,8 @@ export function ChatInterface() {
         response = await apiClient.askEnhanced(request)
       } else if (selectedMode === 'rag-only') {
         response = await apiClient.ask(request)
+      } else if (selectedMode === 'research') {
+        response = await apiClient.askResearch(request)
       }
 
       // Check if response is valid
