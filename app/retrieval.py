@@ -142,6 +142,57 @@ class HybridRetriever:
         
         return reranked
     
+    async def retrieve_async(self, query: str, top_k: int = RERANK_TOP_K, compute_metrics: bool = False, 
+                            bm25_top_k: Optional[int] = None, embedding_top_k: Optional[int] = None, 
+                            rerank_top_k: Optional[int] = None) -> List[Dict[str, Any]]:
+        """
+        Async hybrid retrieval pipeline with parallel BM25 and embedding search:
+        1. BM25 prefilter + Embedding-based KNN (parallel)
+        2. Rerank with cross-encoder
+        
+        Args:
+            query: Search query
+            top_k: Number of final results
+            compute_metrics: If True, compute and log retrieval metrics
+            bm25_top_k: Number of BM25 results (overrides config)
+            embedding_top_k: Number of embedding results (overrides config)
+            rerank_top_k: Number of final reranked results (overrides top_k)
+        """
+        # Use provided parameters or fall back to config defaults
+        bm25_k = bm25_top_k if bm25_top_k is not None else BM25_TOP_K
+        embedding_k = embedding_top_k if embedding_top_k is not None else EMBEDDING_TOP_K
+        final_k = rerank_top_k if rerank_top_k is not None else top_k
+        
+        # Stage 1: Parallel BM25 and Embedding search
+        start_time = time.time()
+        bm25_task = asyncio.create_task(self._bm25_search_async(query, top_k=bm25_k))
+        embedding_task = asyncio.create_task(self._embedding_search_async(query, top_k=embedding_k))
+        
+        # Wait for both searches to complete
+        bm25_results, embedding_results = await asyncio.gather(bm25_task, embedding_task)
+        
+        parallel_time = time.time() - start_time
+        logger.info(f"Parallel retrieval completed in {parallel_time:.2f}s")
+        logger.info(f"BM25 retrieved: {len(bm25_results)} results (top_k={bm25_k})")
+        logger.info(f"Embedding retrieved: {len(embedding_results)} results (top_k={embedding_k})")
+        
+        # Combine and deduplicate
+        combined = self._merge_results(bm25_results, embedding_results)
+        logger.info(f"Combined unique results: {len(combined)}")
+        
+        # Stage 2: Rerank
+        rerank_start = time.time()
+        reranked = self._rerank(query, combined, top_k=final_k)
+        rerank_time = time.time() - rerank_start
+        logger.info(f"Reranking completed in {rerank_time:.2f}s")
+        logger.info(f"Final reranked results: {len(reranked)} (top_k={final_k})")
+        
+        # Optional: Compute metrics for monitoring
+        if compute_metrics and len(reranked) > 0:
+            self._compute_and_log_metrics(query, reranked)
+        
+        return reranked
+    
     def _compute_and_log_metrics(self, query: str, results: List[Dict[str, Any]]):
         """Compute and log retrieval metrics."""
         try:
@@ -188,6 +239,12 @@ class HybridRetriever:
         
         return results
     
+    async def _bm25_search_async(self, query: str, top_k: int) -> List[Dict[str, Any]]:
+        """Async BM25 search over documents."""
+        # Run BM25 search in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(self.executor, self._bm25_search, query, top_k)
+    
     def _embedding_search(self, query: str, top_k: int) -> List[Dict[str, Any]]:
         """Embedding-based vector search with similarity filtering."""
         try:
@@ -221,6 +278,12 @@ class HybridRetriever:
         except Exception as e:
             logger.error(f"Embedding search failed: {e}")
             return []
+    
+    async def _embedding_search_async(self, query: str, top_k: int) -> List[Dict[str, Any]]:
+        """Async embedding-based vector search with similarity filtering."""
+        # Run embedding search in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(self.executor, self._embedding_search, query, top_k)
     
     def _merge_results(self, bm25_results: List[Dict], embedding_results: List[Dict]) -> List[Dict]:
         """Merge and deduplicate results from both methods."""
@@ -281,6 +344,70 @@ class HybridRetriever:
         """Answer query using retrieved context and Ollama."""
         # Retrieve relevant documents with custom settings
         results = self.retrieve(
+            query, 
+            top_k=top_k,
+            bm25_top_k=bm25_top_k,
+            embedding_top_k=embedding_top_k,
+            rerank_top_k=rerank_top_k
+        )
+    
+    async def answer_query_async(self, query: str, top_k: int = 5, conversation_history: Optional[List[Dict[str, str]]] = None, 
+                                model: Optional[str] = None, bm25_top_k: Optional[int] = None, 
+                                embedding_top_k: Optional[int] = None, rerank_top_k: Optional[int] = None) -> Dict[str, Any]:
+        """Answer query using retrieved context and Ollama with parallel processing."""
+        # Retrieve relevant documents with custom settings using parallel processing
+        results = await self.retrieve_async(
+            query, 
+            top_k=top_k,
+            bm25_top_k=bm25_top_k,
+            embedding_top_k=embedding_top_k,
+            rerank_top_k=rerank_top_k
+        )
+        
+        if not results:
+            return {
+                "answer": "No relevant documents found.",
+                "citations": []
+            }
+        
+        # Build context
+        context_parts = []
+        for i, result in enumerate(results, 1):
+            doc_id = result['metadata'].get('doc_id', 'unknown')
+            page = result['metadata'].get('page', 'N/A')
+            section = result['metadata'].get('section', 'N/A')
+            context_parts.append(
+                f"[Source {i} - {doc_id}, Page {page}, {section}]\n{result['text']}\n"
+            )
+        
+        context = "\n".join(context_parts)
+        
+        # Generate answer with Ollama
+        answer = self._generate_answer(query, context, conversation_history, model)
+        
+        # Build citations
+        citations = [
+            Citation(
+                text=result['text'][:200] + "...",
+                doc_id=result['metadata'].get('doc_id') or result['metadata'].get('file_name', 'unknown'),
+                page=result['metadata'].get('page'),
+                section=result['metadata'].get('section') or result['metadata'].get('doc_type', 'unknown'),
+                score=result['rerank_score']
+            )
+            for result in results
+        ]
+        
+        return {
+            "answer": answer,
+            "citations": citations
+        }
+    
+    async def answer_query_async(self, query: str, top_k: int = 5, conversation_history: Optional[List[Dict[str, str]]] = None, 
+                                model: Optional[str] = None, bm25_top_k: Optional[int] = None, 
+                                embedding_top_k: Optional[int] = None, rerank_top_k: Optional[int] = None) -> Dict[str, Any]:
+        """Answer query using retrieved context and Ollama with parallel processing."""
+        # Retrieve relevant documents with custom settings using parallel processing
+        results = await self.retrieve_async(
             query, 
             top_k=top_k,
             bm25_top_k=bm25_top_k,

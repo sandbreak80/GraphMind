@@ -208,8 +208,8 @@ async def ask_question(request: AskRequest, current_user: dict = Depends(get_cur
             
             # Use memory-aware RAG if available
             if memory_aware_rag:
-                # Get document results with custom retrieval settings
-                doc_results = retriever.retrieve(
+                # Get document results with custom retrieval settings using parallel processing
+                doc_results = await retriever.retrieve_async(
                     request.query, 
                     top_k=request.top_k,
                     bm25_top_k=request.bm25_top_k,
