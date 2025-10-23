@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useStore } from './store'
+import { APP_CONFIG } from './config'
 
 // Centralized API URL determination
 export const getApiUrl = () => {
@@ -18,7 +19,7 @@ export const getApiUrl = () => {
     }
   }
   // Use Docker service name for container-to-container communication
-  return 'http://rag-service:8000'
+  return APP_CONFIG.api.baseUrl
 }
 
 const api = axios.create({
@@ -42,13 +43,22 @@ api.interceptors.request.use((config) => {
 export interface AskRequest {
   query: string
   mode: 'qa' | 'spec' | 'obsidian'
-  top_k?: number
+  top_k?: number  // This is for retrieval (legacy, will be replaced by rerank_top_k)
   temperature?: number
   max_tokens?: number
+  top_k_sampling?: number  // New: LLM sampling parameter
+  model?: string
   conversation_history?: Array<{
     role: 'user' | 'assistant'
     content: string
   }>
+  // Document Retrieval Settings
+  bm25_top_k?: number
+  embedding_top_k?: number
+  rerank_top_k?: number
+  // Web Search Settings
+  web_search_results?: number
+  web_pages_to_parse?: number
 }
 
 export interface AskResponse {
@@ -95,22 +105,22 @@ export interface StatsResponse {
 export const apiClient = {
   // Chat endpoints
   async ask(request: AskRequest): Promise<AskResponse> {
-    const { data } = await api.post('/ask', { request })
+    const { data } = await api.post('/ask', request)
     return data
   },
 
   async askEnhanced(request: AskRequest): Promise<AskResponse> {
-    const { data } = await api.post('/ask-enhanced', { request })
+    const { data } = await api.post('/ask-enhanced', request)
     return data
   },
 
   async askObsidian(request: AskRequest): Promise<AskResponse> {
-    const { data } = await api.post('/ask-obsidian', { request })
+    const { data } = await api.post('/ask-obsidian', request)
     return data
   },
 
   async askResearch(request: AskRequest): Promise<AskResponse> {
-    const { data } = await api.post('/ask-research', { request })
+    const { data } = await api.post('/ask-research', request)
     return data
   },
 
@@ -123,7 +133,6 @@ export const apiClient = {
   async generate(request: {
     model: string
     prompt: string
-    stream?: boolean
     options?: {
       temperature?: number
       num_predict?: number
@@ -146,59 +155,6 @@ export const apiClient = {
     return data
   },
 
-  // Streaming chat
-  async streamChat(
-    request: AskRequest,
-    onMessage: (chunk: string) => void,
-    onComplete: (data?: any) => void,
-    onError: (error: Error) => void
-  ) {
-    try {
-      const endpoint = request.mode === 'obsidian' ? '/ask-obsidian' : 
-                     request.mode === 'spec' ? '/ask' : '/ask-enhanced'
-      
-      const response = await fetch(`${getApiUrl()}${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${useStore.getState().authToken}`
-        },
-        body: JSON.stringify({ request }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      // Since backend doesn't support streaming yet, simulate it with the complete response
-      const data = await response.json()
-      
-      if (data && data.answer) {
-        // Simulate streaming by breaking the response into chunks
-        const words = data.answer.split(' ')
-        let currentText = ''
-        
-        for (let i = 0; i < words.length; i++) {
-          const newWord = (i > 0 ? ' ' : '') + words[i]
-          currentText += newWord
-          
-          // Send chunk every 3 words for smooth streaming effect
-          if (i % 3 === 0 || i === words.length - 1) {
-            onMessage(currentText) // Send the full accumulated text
-            // Small delay to simulate streaming
-            await new Promise(resolve => setTimeout(resolve, 50))
-          }
-        }
-      } else {
-        // If no answer, send error message
-        onMessage('Sorry, I encountered an error. Please try again.')
-      }
-
-      onComplete(data)
-    } catch (error) {
-      onError(error as Error)
-    }
-  }
 }
 
 export default apiClient

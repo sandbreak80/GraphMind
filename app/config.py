@@ -26,7 +26,7 @@ else:
 OUTPUT_DIR.mkdir(exist_ok=True, parents=True)
 
 # Collection Configuration
-COLLECTION_NAME = os.getenv("COLLECTION_NAME", "emini_docs")
+COLLECTION_NAME = os.getenv("COLLECTION_NAME", "tradingai_docs")
 
 # Ollama
 if Path("/workspace").exists():
@@ -41,11 +41,11 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1")
 EMBEDDING_MODEL = "BAAI/bge-m3"
 RERANKER_MODEL = "BAAI/bge-reranker-large"
 
-# High-Performance Retrieval Configuration (100GB RAM + 24 CPU cores)
-# Optimized settings for faster response times
-BM25_TOP_K = int(os.getenv("BM25_TOP_K", "20"))          # Very reduced for faster BM25 search
-EMBEDDING_TOP_K = int(os.getenv("EMBEDDING_TOP_K", "20"))  # Very reduced for faster embedding search
-RERANK_TOP_K = int(os.getenv("RERANK_TOP_K", "5"))      # Very reduced for faster reranking
+# High-Performance Retrieval Configuration (100GB RAM + 24 CPU cores + 2x GPU)
+# Optimized settings for balanced performance and recall
+BM25_TOP_K = int(os.getenv("BM25_TOP_K", "30"))          # Balanced for high-end hardware
+EMBEDDING_TOP_K = int(os.getenv("EMBEDDING_TOP_K", "30"))  # Balanced for high-end hardware
+RERANK_TOP_K = int(os.getenv("RERANK_TOP_K", "8"))      # Balanced for comprehensive results
 
 # Memory-Intensive Caching Configuration
 ENABLE_AGGRESSIVE_CACHING = os.getenv("ENABLE_AGGRESSIVE_CACHING", "true").lower() == "true"

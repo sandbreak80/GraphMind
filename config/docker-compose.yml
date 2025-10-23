@@ -1,7 +1,9 @@
 services:
   rag-service:
-    build: .
-    container_name: emini-rag
+    build:
+      context: ..
+      dockerfile: config/Dockerfile
+    container_name: tradingai-rag
     ports:
       - "8001:8000"
     volumes:
@@ -31,10 +33,10 @@ services:
       # Collection Configuration
       - COLLECTION_NAME=emini_docs
       
-      # High-Performance Retrieval Configuration (optimized for speed)
-      - BM25_TOP_K=20
-      - EMBEDDING_TOP_K=20
-      - RERANK_TOP_K=5
+      # High-Performance Retrieval Configuration (optimized for 100GB RAM + 24 CPU cores + 2x GPU)
+      - BM25_TOP_K=30
+      - EMBEDDING_TOP_K=30
+      - RERANK_TOP_K=8
       - MAX_WORKERS=20
       - BATCH_SIZE=32
       - EMBEDDING_BATCH_SIZE=64
@@ -97,9 +99,9 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ../frontend
       dockerfile: Dockerfile
-    container_name: emini-frontend
+    container_name: tradingai-frontend
     ports:
       - "3001:3000"
     environment:

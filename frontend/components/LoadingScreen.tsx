@@ -8,7 +8,7 @@ export function LoadingScreen() {
           <div className="mx-auto h-16 w-16 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600"></div>
         </div>
         <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
-          Loading EminiPlayer RAG
+          Loading TradingAI Research Platform
         </h2>
         <p className="text-gray-600 dark:text-gray-400">
           Initializing your trading strategy assistant...

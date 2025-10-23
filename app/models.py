@@ -34,10 +34,19 @@ class AskRequest(BaseModel):
     """Request to ask a question."""
     query: str = Field(..., description="Question to ask")
     mode: str = Field("qa", description="Mode: 'qa' or 'spec'")
-    top_k: int = Field(5, description="Number of results to return")
+    top_k: int = Field(5, description="Number of results to return (legacy, use rerank_top_k)")
     temperature: Optional[float] = Field(None, description="Temperature for LLM generation")
     max_tokens: Optional[int] = Field(None, description="Maximum tokens for LLM generation")
+    top_k_sampling: Optional[int] = Field(None, description="Top-K sampling for LLM generation")
+    model: Optional[str] = Field(None, description="LLM model to use for generation")
     conversation_history: Optional[List[Message]] = Field(None, description="Previous conversation messages")
+    # Document Retrieval Settings
+    bm25_top_k: Optional[int] = Field(None, description="Number of BM25 search results")
+    embedding_top_k: Optional[int] = Field(None, description="Number of embedding search results")
+    rerank_top_k: Optional[int] = Field(None, description="Number of final reranked results")
+    # Web Search Settings
+    web_search_results: Optional[int] = Field(None, description="Number of web search results")
+    web_pages_to_parse: Optional[int] = Field(None, description="Number of web pages to parse")
 
 
 class AskResponse(BaseModel):

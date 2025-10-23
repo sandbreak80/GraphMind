@@ -245,7 +245,8 @@ class EnhancedWebSearch:
         self.cache = {}
         self.cache_ttl = 300  # 5 minutes
     
-    def search_with_intelligent_queries(self, user_prompt: str, conversation_history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
+    def search_with_intelligent_queries(self, user_prompt: str, conversation_history: Optional[List[Dict[str, str]]] = None, 
+                                    web_search_results: Optional[int] = None, web_pages_to_parse: Optional[int] = None) -> Dict[str, Any]:
         """
         Perform web search using LLM-generated intelligent queries.
         
@@ -267,11 +268,12 @@ class EnhancedWebSearch:
             for search_query in search_queries:
                 try:
                     # Search using the generated query
+                    num_results = web_search_results if web_search_results is not None else 5
                     results = self.searxng.search(
                         search_query.query,
                         categories=['news', 'general'],
                         engines=['google', 'bing', 'duckduckgo'],
-                        num_results=5
+                        num_results=num_results
                     )
                     
                     # Add metadata to results

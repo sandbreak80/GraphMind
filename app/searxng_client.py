@@ -19,7 +19,7 @@ class SearXNGClient:
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'EminiPlayer-RAG/1.0',
+            'User-Agent': 'TradingAI-Research-Platform/2.0',
             'Accept': 'application/json'
         })
     

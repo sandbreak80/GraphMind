@@ -11,6 +11,8 @@ export interface Message {
   mode?: string
   totalSources?: number
   isProcessing?: boolean
+  model?: string
+  responseTime?: number
 }
 
 export interface Source {
@@ -27,6 +29,8 @@ export interface Chat {
   messages: Message[]
   createdAt: string
   updatedAt: string
+  currentModel?: string
+  averageResponseTime?: number
 }
 
 export interface OllamaModel {
@@ -52,11 +56,18 @@ export interface Settings {
   selectedModel: string
   temperature: number
   maxTokens: number
-  topK: number
+  topKSampling: number  // Renamed from topK to avoid confusion with retrieval
   enableWebSearch: boolean
   enableRAG: boolean
   enableObsidian: boolean
   theme: 'light' | 'dark' | 'system'
+  // Document Retrieval Settings
+  bm25TopK: number
+  embeddingTopK: number
+  rerankTopK: number
+  // Web Search Settings
+  webSearchResults: number
+  webPagesToParse: number
 }
 
 interface AppState {
@@ -70,7 +81,6 @@ interface AppState {
   currentChatId: string | null
   messages: Message[]
   isLoading: boolean
-  isStreaming: boolean
   isProcessing: boolean
   
   // Models
@@ -95,6 +105,19 @@ interface AppState {
   setProcessing: (processing: boolean) => void
   retryLastMessage: () => void
   
+  // Model switching
+  switchModel: (model: string) => void
+  getCurrentModel: () => string
+  getChatModel: (chatId: string) => string
+  
+  // Response time tracking
+  updateResponseTime: (messageId: string, responseTime: number) => void
+  calculateAverageResponseTime: (chatId: string) => number
+  
+  // Chat export
+  exportChat: (chatId: string) => Promise<string>
+  exportAllChats: () => Promise<string>
+  
   setModels: (models: OllamaModel[]) => void
   setSelectedModel: (model: string) => void
   
@@ -114,11 +137,18 @@ const defaultSettings: Settings = {
   selectedModel: 'qwen2.5-coder:14b',
   temperature: 0.1,
   maxTokens: 8000,
-  topK: 5,
+  topKSampling: 40,    // Renamed and optimized for high-end hardware
   enableWebSearch: false,
   enableRAG: true,
   enableObsidian: true,
   theme: 'system',
+  // Document Retrieval Settings (optimized for 100GB RAM + 24 CPU cores + 2x GPU)
+  bm25TopK: 30,        // Increased for better recall on high-end hardware
+  embeddingTopK: 30,   // Increased for better recall on high-end hardware
+  rerankTopK: 8,       // Increased for more comprehensive results
+  // Web Search Settings (balanced for real-time performance)
+  webSearchResults: 6, // Slightly increased for better coverage
+  webPagesToParse: 4,  // Increased for more detailed web content
 }
 
 export const useStore = create<AppState>()(
@@ -132,7 +162,6 @@ export const useStore = create<AppState>()(
       currentChatId: null,
       messages: [],
       isLoading: false,
-      isStreaming: false,
       isProcessing: false,
       models: [],
       selectedModel: 'qwen2.5-coder:14b',
@@ -155,15 +184,16 @@ export const useStore = create<AppState>()(
           currentChatId: chatId,
           messages: cleanedMessages,
           isProcessing: false,
-          isStreaming: false
         })
       },
       
       addMessage: (message) => {
+        const { getCurrentModel } = get()
         const newMessage: Message = {
           ...message,
           id: crypto.randomUUID(),
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          model: message.model || getCurrentModel()
         }
         
         set(state => {
@@ -354,6 +384,125 @@ export const useStore = create<AppState>()(
       setModels: (models) => set({ models }),
       setSelectedModel: (model) => set({ selectedModel: model }),
       
+      // Model switching
+      switchModel: (model) => {
+        set({ selectedModel: model })
+        // Update current chat's model if it exists
+        const { currentChatId, chats } = get()
+        if (currentChatId) {
+          const updatedChats = chats.map(chat => 
+            chat.id === currentChatId 
+              ? { ...chat, currentModel: model, updatedAt: new Date().toISOString() }
+              : chat
+          )
+          set({ chats: updatedChats })
+        }
+      },
+      
+      getCurrentModel: () => {
+        const { currentChatId, chats, selectedModel } = get()
+        if (currentChatId) {
+          const chat = chats.find(c => c.id === currentChatId)
+          return chat?.currentModel || selectedModel
+        }
+        return selectedModel
+      },
+      
+      getChatModel: (chatId) => {
+        const { chats, selectedModel } = get()
+        const chat = chats.find(c => c.id === chatId)
+        return chat?.currentModel || selectedModel
+      },
+      
+      // Response time tracking
+      updateResponseTime: (messageId, responseTime) => {
+        set(state => {
+          const updatedMessages = state.messages.map(msg => 
+            msg.id === messageId ? { ...msg, responseTime } : msg
+          )
+          
+          // Update chat's average response time
+          const updatedChats = state.chats.map(chat => {
+            if (chat.id === state.currentChatId) {
+              const chatMessages = updatedMessages.filter(msg => msg.role === 'assistant' && msg.responseTime)
+              const avgTime = chatMessages.length > 0 
+                ? chatMessages.reduce((sum, msg) => sum + (msg.responseTime || 0), 0) / chatMessages.length
+                : 0
+              return { ...chat, messages: updatedMessages, averageResponseTime: avgTime }
+            }
+            return chat
+          })
+          
+          return {
+            messages: updatedMessages,
+            chats: updatedChats
+          }
+        })
+      },
+      
+      calculateAverageResponseTime: (chatId) => {
+        const { chats } = get()
+        const chat = chats.find(c => c.id === chatId)
+        if (!chat) return 0
+        
+        const assistantMessages = chat.messages.filter(msg => msg.role === 'assistant' && msg.responseTime)
+        if (assistantMessages.length === 0) return 0
+        
+        return assistantMessages.reduce((sum, msg) => sum + (msg.responseTime || 0), 0) / assistantMessages.length
+      },
+      
+      // Chat export
+      exportChat: async (chatId) => {
+        const { chats } = get()
+        const chat = chats.find(c => c.id === chatId)
+        if (!chat) throw new Error('Chat not found')
+        
+        let markdown = `# ${chat.title}\n\n`
+        markdown += `**Created:** ${new Date(chat.createdAt).toLocaleString()}\n`
+        markdown += `**Last Updated:** ${new Date(chat.updatedAt).toLocaleString()}\n`
+        if (chat.averageResponseTime) {
+          markdown += `**Average Response Time:** ${chat.averageResponseTime.toFixed(2)}s\n`
+        }
+        markdown += `\n---\n\n`
+        
+        for (const message of chat.messages) {
+          const timestamp = new Date(message.timestamp).toLocaleString()
+          const model = message.model ? ` (${message.model})` : ''
+          const responseTime = message.responseTime ? ` [${message.responseTime.toFixed(2)}s]` : ''
+          
+          markdown += `## ${message.role === 'user' ? 'User' : 'Assistant'}${model}${responseTime}\n`
+          markdown += `*${timestamp}*\n\n`
+          markdown += `${message.content}\n\n`
+          
+          if (message.sources && message.sources.length > 0) {
+            markdown += `### Sources\n`
+            for (const source of message.sources) {
+              markdown += `- **${source.section}** (Score: ${source.score.toFixed(2)})\n`
+              markdown += `  ${source.text.substring(0, 200)}...\n\n`
+            }
+          }
+          
+          markdown += `---\n\n`
+        }
+        
+        return markdown
+      },
+      
+      exportAllChats: async () => {
+        const { chats } = get()
+        let markdown = `# TradingAI Research Platform Chat Export\n\n`
+        markdown += `**Export Date:** ${new Date().toLocaleString()}\n`
+        markdown += `**Total Chats:** ${chats.length}\n\n`
+        markdown += `---\n\n`
+        
+        for (const chat of chats) {
+          const chatExport = await get().exportChat(chat.id)
+          markdown += chatExport + '\n\n'
+        }
+        
+        return markdown
+      },
+      
       updateSettings: (newSettings) => {
         set(state => ({
           settings: { ...state.settings, ...newSettings }
@@ -388,7 +537,7 @@ export const useStore = create<AppState>()(
       }
     }),
     {
-      name: 'eminiplayer-store',
+      name: 'tradingai-store',
       partialize: (state) => ({
         chats: state.chats,
         settings: state.settings,

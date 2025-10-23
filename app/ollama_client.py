@@ -23,6 +23,7 @@ class OllamaClient:
         model: Optional[str] = None,
         temperature: float = 0.1,
         max_tokens: int = 4000,
+        top_k: Optional[int] = None,
         timeout: int = 180
     ) -> str:
         """
@@ -33,6 +34,7 @@ class OllamaClient:
             model: Model to use (defaults to default_model)
             temperature: Sampling temperature (0-1)
             max_tokens: Max tokens to generate
+            top_k: Top-K sampling for vocabulary diversity
             timeout: Request timeout in seconds
             
         Returns:
@@ -42,17 +44,23 @@ class OllamaClient:
         
         try:
             url = f"{self.base_url}/api/generate"
+            options = {
+                "temperature": temperature,
+                "num_predict": max_tokens,
+                "top_p": 0.9,
+                "repeat_penalty": 1.1,
+                "stop": ["Human:", "User:", "Question:", "Context:"]
+            }
+            
+            # Add top_k if provided
+            if top_k is not None:
+                options["top_k"] = top_k
+            
             payload = {
                 "model": model,
                 "prompt": prompt,
                 "stream": False,
-                "options": {
-                    "temperature": temperature,
-                    "num_predict": max_tokens,
-                    "top_p": 0.9,
-                    "repeat_penalty": 1.1,
-                    "stop": ["Human:", "User:", "Question:", "Context:"]
-                }
+                "options": options
             }
             
             logger.debug(f"Calling Ollama API with model: {model}")

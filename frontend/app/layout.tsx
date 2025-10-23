@@ -3,12 +3,13 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
 import { Toaster } from 'react-hot-toast'
+import 'katex/dist/katex.min.css'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'EminiPlayer RAG',
-  description: 'Advanced RAG system for trading strategies with Obsidian integration',
+  title: 'TradingAI Research Platform',
+  description: 'Comprehensive AI-powered research platform with RAG, web search, Obsidian integration, and intelligent query generation',
 }
 
 export default function RootLayout({

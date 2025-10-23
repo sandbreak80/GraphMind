@@ -17,7 +17,7 @@ from app.config import (
     CHROMA_DIR, EMBEDDING_MODEL, RERANKER_MODEL, COLLECTION_NAME,
     BM25_TOP_K, EMBEDDING_TOP_K, RERANK_TOP_K,
     MIN_SIMILARITY_THRESHOLD,
-    OLLAMA_BASE_URL, OLLAMA_MODEL,
+    OLLAMA_BASE_URL, OLLAMA_MODEL, OLLAMA_TOP_K,
     MAX_WORKERS, BATCH_SIZE, EMBEDDING_BATCH_SIZE,
     ENABLE_AGGRESSIVE_CACHING, CACHE_EMBEDDINGS, CACHE_BM25_INDEX, CACHE_RERANKER
 )
@@ -98,7 +98,9 @@ class HybridRetriever:
             self.bm25 = None
             self.bm25_docs = []
     
-    def retrieve(self, query: str, top_k: int = RERANK_TOP_K, compute_metrics: bool = False) -> List[Dict[str, Any]]:
+    def retrieve(self, query: str, top_k: int = RERANK_TOP_K, compute_metrics: bool = False, 
+                 bm25_top_k: Optional[int] = None, embedding_top_k: Optional[int] = None, 
+                 rerank_top_k: Optional[int] = None) -> List[Dict[str, Any]]:
         """
         Hybrid retrieval pipeline:
         1. BM25 prefilter
@@ -109,22 +111,30 @@ class HybridRetriever:
             query: Search query
             top_k: Number of final results
             compute_metrics: If True, compute and log retrieval metrics
+            bm25_top_k: Number of BM25 results (overrides config)
+            embedding_top_k: Number of embedding results (overrides config)
+            rerank_top_k: Number of final reranked results (overrides top_k)
         """
+        # Use provided parameters or fall back to config defaults
+        bm25_k = bm25_top_k if bm25_top_k is not None else BM25_TOP_K
+        embedding_k = embedding_top_k if embedding_top_k is not None else EMBEDDING_TOP_K
+        final_k = rerank_top_k if rerank_top_k is not None else top_k
+        
         # Stage 1: BM25 prefilter
-        bm25_results = self._bm25_search(query, top_k=BM25_TOP_K)
-        logger.info(f"BM25 retrieved: {len(bm25_results)} results")
+        bm25_results = self._bm25_search(query, top_k=bm25_k)
+        logger.info(f"BM25 retrieved: {len(bm25_results)} results (top_k={bm25_k})")
         
         # Stage 2: Embedding search
-        embedding_results = self._embedding_search(query, top_k=EMBEDDING_TOP_K)
-        logger.info(f"Embedding retrieved: {len(embedding_results)} results")
+        embedding_results = self._embedding_search(query, top_k=embedding_k)
+        logger.info(f"Embedding retrieved: {len(embedding_results)} results (top_k={embedding_k})")
         
         # Combine and deduplicate
         combined = self._merge_results(bm25_results, embedding_results)
         logger.info(f"Combined unique results: {len(combined)}")
         
         # Stage 3: Rerank
-        reranked = self._rerank(query, combined, top_k=top_k)
-        logger.info(f"Final reranked results: {len(reranked)}")
+        reranked = self._rerank(query, combined, top_k=final_k)
+        logger.info(f"Final reranked results: {len(reranked)} (top_k={final_k})")
         
         # Optional: Compute metrics for monitoring
         if compute_metrics and len(reranked) > 0:
@@ -265,10 +275,18 @@ class HybridRetriever:
         
         return all_results[:top_k]
     
-    def answer_query(self, query: str, top_k: int = 5, conversation_history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
+    def answer_query(self, query: str, top_k: int = 5, conversation_history: Optional[List[Dict[str, str]]] = None, 
+                     model: Optional[str] = None, bm25_top_k: Optional[int] = None, 
+                     embedding_top_k: Optional[int] = None, rerank_top_k: Optional[int] = None) -> Dict[str, Any]:
         """Answer query using retrieved context and Ollama."""
-        # Retrieve relevant documents
-        results = self.retrieve(query, top_k=top_k)
+        # Retrieve relevant documents with custom settings
+        results = self.retrieve(
+            query, 
+            top_k=top_k,
+            bm25_top_k=bm25_top_k,
+            embedding_top_k=embedding_top_k,
+            rerank_top_k=rerank_top_k
+        )
         
         if not results:
             return {
@@ -289,7 +307,7 @@ class HybridRetriever:
         context = "\n".join(context_parts)
         
         # Generate answer with Ollama
-        answer = self._generate_answer(query, context, conversation_history)
+        answer = self._generate_answer(query, context, conversation_history, model)
         
         # Build citations
         citations = [
@@ -308,9 +326,20 @@ class HybridRetriever:
             "citations": citations
         }
     
-    def _generate_answer(self, query: str, context: str, conversation_history: Optional[List[Dict[str, str]]] = None) -> str:
+    def _generate_answer(self, query: str, context: str, conversation_history: Optional[List[Dict[str, str]]] = None, 
+                         model: Optional[str] = None, system_prompt: Optional[str] = None, 
+                         temperature: Optional[float] = None, max_tokens: Optional[int] = None, 
+                         top_k_sampling: Optional[int] = None) -> str:
         """Generate comprehensive trading analysis using production-grade LLM."""
         from app.config import PRODUCTION_LLM_MODEL, MAX_TOKENS, TEMPERATURE, TOP_P, TIMEOUT
+        
+        # Use provided model or fallback to default
+        llm_model = model or PRODUCTION_LLM_MODEL
+        
+        # Use provided parameters or fallback to config defaults
+        llm_temperature = temperature if temperature is not None else TEMPERATURE
+        llm_max_tokens = max_tokens if max_tokens is not None else MAX_TOKENS
+        llm_top_k = top_k_sampling if top_k_sampling is not None else OLLAMA_TOP_K
         
         # Build conversation context if provided
         conversation_context = ""
@@ -321,7 +350,16 @@ class HybridRetriever:
                 conversation_context += f"{role}: {msg.get('content', '')}\n"
             conversation_context += "\n"
 
-        prompt = f"""CONTEXT FROM DOCUMENTATION:
+        # Use system prompt if provided, otherwise use default
+        if system_prompt:
+            prompt = f"""{system_prompt}
+
+CONTEXT FROM DOCUMENTATION:
+{context}
+
+{conversation_context}USER QUESTION: {query}"""
+        else:
+            prompt = f"""CONTEXT FROM DOCUMENTATION:
 {context}
 
 {conversation_context}USER QUESTION: {query}"""
@@ -330,12 +368,13 @@ class HybridRetriever:
             response = requests.post(
                 f"{OLLAMA_BASE_URL}/api/generate",
                 json={
-                    "model": PRODUCTION_LLM_MODEL,
+                    "model": llm_model,
                     "prompt": prompt,
                     "stream": False,
                     "options": {
-                        "temperature": TEMPERATURE,
-                        "num_predict": MAX_TOKENS,
+                        "temperature": llm_temperature,
+                        "num_predict": llm_max_tokens,
+                        "top_k": llm_top_k,
                         "top_p": TOP_P,
                         "repeat_penalty": 1.1,
                         "stop": ["Human:", "User:", "Question:"]

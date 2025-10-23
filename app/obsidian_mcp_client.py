@@ -21,7 +21,7 @@ class ObsidianMCPClient:
         self.session = requests.Session()
         self.session.headers.update({
             'Content-Type': 'application/json',
-            'User-Agent': 'EminiPlayer-RAG/1.0'
+            'User-Agent': 'TradingAI-Research-Platform/2.0'
         })
         if api_key:
             self.session.headers.update({

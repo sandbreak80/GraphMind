@@ -50,7 +50,7 @@ export function ChatControls({ selectedMode, onModeChange }: ChatControlsProps) 
 
   return (
     <div className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-center">
         <div className="flex items-center space-x-4">
           <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
             Mode:
@@ -79,21 +79,6 @@ export function ChatControls({ selectedMode, onModeChange }: ChatControlsProps) 
                 </button>
               )
             })}
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
-          <div className="flex items-center space-x-2">
-            <div className={`w-2 h-2 rounded-full ${settings.enableRAG ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-            <span>RAG</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className={`w-2 h-2 rounded-full ${settings.enableObsidian ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
-            <span>Obsidian</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className={`w-2 h-2 rounded-full ${settings.enableWebSearch ? 'bg-purple-500' : 'bg-gray-300'}`}></div>
-            <span>Web</span>
           </div>
         </div>
       </div>

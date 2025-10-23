@@ -1,9 +1,9 @@
-"""Authentication module for EminiPlayer."""
+"""Authentication module for TradingAI Research Platform."""
 import hashlib
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 import os
@@ -97,7 +97,7 @@ class AuthManager:
 # Global auth manager instance
 auth_manager = AuthManager()
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = security):
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Dependency to get the current authenticated user."""
     return auth_manager.get_current_user(credentials)
 

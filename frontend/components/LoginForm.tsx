@@ -55,7 +55,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
             <LockClosedIcon className="h-6 w-6 text-primary-600 dark:text-primary-400" />
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
-            EminiPlayer Login
+            TradingAI Research Platform Login
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
             Sign in to access the trading strategy knowledge base

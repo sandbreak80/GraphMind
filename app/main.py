@@ -1,8 +1,8 @@
-"""FastAPI application for EminiPlayer RAG service."""
+"""FastAPI application for TradingAI Research Platform."""
 import logging
 from contextlib import asynccontextmanager
 from typing import Optional
-from fastapi import FastAPI, HTTPException, Form
+from fastapi import FastAPI, HTTPException, Form, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -19,6 +19,8 @@ from app.query_generator import IntelligentQueryGenerator, EnhancedWebSearch
 from app.research_engine import ComprehensiveResearchSystem
 from app.web_parser import WebPageParser, EnhancedWebSearch as ParsedWebSearch
 from app.memory_system import UserMemory, MemoryAwareRAG
+from app.system_prompt_manager import system_prompt_manager
+from app.user_prompt_manager import user_prompt_manager
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -100,8 +102,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="EminiPlayer RAG Service",
-    description="RAG service for EminiPlayer PDFs with spec extraction",
+    title="TradingAI Research Platform API",
+    description="Comprehensive AI research platform with RAG, web search, Obsidian integration, and intelligent query generation",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -119,7 +121,7 @@ app.add_middleware(
 @app.get("/")
 async def root():
     """Health check endpoint."""
-    return {"status": "online", "service": "EminiPlayer RAG"}
+    return {"status": "online", "service": "TradingAI Research Platform"}
 
 
 # Authentication endpoints
@@ -144,7 +146,7 @@ async def login(username: str = Form(...), password: str = Form(...)):
     }
 
 @app.get("/auth/me")
-async def get_current_user_info(current_user: dict = get_current_user):
+async def get_current_user_info(current_user: dict = Depends(get_current_user)):
     """Get current user information."""
     return {
         "username": current_user["username"],
@@ -153,7 +155,7 @@ async def get_current_user_info(current_user: dict = get_current_user):
     }
 
 @app.post("/ingest", response_model=IngestResponse)
-async def ingest_pdfs(request: IngestRequest, current_user: dict = get_current_user):
+async def ingest_pdfs(request: IngestRequest, current_user: dict = Depends(get_current_user)):
     """
     Ingest PDFs from /workspace/pdfs directory.
     
@@ -175,7 +177,7 @@ async def ingest_pdfs(request: IngestRequest, current_user: dict = get_current_u
 
 
 @app.post("/ask", response_model=AskResponse)
-async def ask_question(request: AskRequest, current_user: dict = get_current_user):
+async def ask_question(request: AskRequest, current_user: dict = Depends(get_current_user)):
     """
     Answer questions with citations or extract YAML spec.
     
@@ -206,16 +208,32 @@ async def ask_question(request: AskRequest, current_user: dict = get_current_use
             
             # Use memory-aware RAG if available
             if memory_aware_rag:
-                # Get document results
-                doc_results = retriever.retrieve(request.query, top_k=request.top_k)
+                # Get document results with custom retrieval settings
+                doc_results = retriever.retrieve(
+                    request.query, 
+                    top_k=request.top_k,
+                    bm25_top_k=request.bm25_top_k,
+                    embedding_top_k=request.embedding_top_k,
+                    rerank_top_k=request.rerank_top_k
+                )
                 combined_context = "\n".join([r['text'] for r in doc_results])
+                
+                # Get system prompt for RAG mode
+                user_id = current_user.get("username", "anonymous")
+                system_prompt = user_prompt_manager.get_prompt_with_fallback(
+                    user_id, "rag_only", system_prompt_manager.get_prompt("rag_only")
+                )
                 
                 # Generate with memory
                 answer = memory_aware_rag.generate_with_memory(
-                    "anonymous", 
+                    user_id, 
                     request.query, 
                     combined_context, 
-                    conversation_history
+                    conversation_history,
+                    request.model,
+                    request.temperature,
+                    request.max_tokens,
+                    request.top_k_sampling
                 )
                 
                 # Create citations
@@ -238,7 +256,11 @@ async def ask_question(request: AskRequest, current_user: dict = get_current_use
                 result = retriever.answer_query(
                     query=request.query,
                     top_k=request.top_k,
-                    conversation_history=conversation_history
+                    conversation_history=conversation_history,
+                    model=request.model,
+                    bm25_top_k=request.bm25_top_k,
+                    embedding_top_k=request.embedding_top_k,
+                    rerank_top_k=request.rerank_top_k
                 )
             return AskResponse(
                 query=request.query,
@@ -252,7 +274,7 @@ async def ask_question(request: AskRequest, current_user: dict = get_current_use
 
 
 @app.post("/ask-enhanced", response_model=AskResponse)
-async def ask_enhanced_question(request: AskRequest, current_user: dict = get_current_user):
+async def ask_enhanced_question(request: AskRequest, current_user: dict = Depends(get_current_user)):
     """Ask a question with enhanced web search using intelligent query generation."""
     try:
         # Use enhanced web search with intelligent query generation if available
@@ -268,29 +290,71 @@ async def ask_enhanced_question(request: AskRequest, current_user: dict = get_cu
             # Perform intelligent web search
             web_search_result = enhanced_web_search.search_with_intelligent_queries(
                 request.query, 
-                conversation_history
+                conversation_history,
+                web_search_results=request.web_search_results,
+                web_pages_to_parse=request.web_pages_to_parse
             )
+            
+            # Debug logging
+            logger.info(f"Web search result type: {type(web_search_result)}")
+            logger.info(f"Web search result keys: {web_search_result.keys() if isinstance(web_search_result, dict) else 'Not a dict'}")
+            if "results" in web_search_result:
+                logger.info(f"Results type: {type(web_search_result['results'])}")
+                logger.info(f"Results length: {len(web_search_result['results'])}")
+                if web_search_result['results']:
+                    logger.info(f"First result type: {type(web_search_result['results'][0])}")
+                    logger.info(f"First result: {web_search_result['results'][0]}")
             
             # WEB SEARCH ONLY MODE - No document retrieval
             # Generate answer using ONLY web context (no documents)
-            web_context = "\n".join([r.get('content', '') for r in web_search_result["results"]])
+            web_results = web_search_result.get("results", [])
+            web_context = "\n".join([
+                r.get('content', '') if isinstance(r, dict) else str(r) 
+                for r in web_results
+            ])
             
             combined_context = f"REAL-TIME WEB CONTEXT:\n{web_context}"
             
+            # Get system prompt for web search mode
+            user_id = current_user.get("username", "anonymous")
+            system_prompt = user_prompt_manager.get_prompt_with_fallback(
+                user_id, "web_search_only", system_prompt_manager.get_prompt("web_search_only")
+            )
+            
             # Generate answer using production LLM
-            answer = retriever._generate_answer(request.query, combined_context, conversation_history)
+            answer = retriever._generate_answer(
+                request.query, 
+                combined_context, 
+                conversation_history, 
+                request.model, 
+                system_prompt,
+                request.temperature,
+                request.max_tokens,
+                request.top_k_sampling
+            )
             
             # Only web citations (no document citations)
-            web_citations = [
-                Citation(
-                    text=r.get('content', r.get('title', ''))[:200] + "...",
-                    doc_id=f"web_{i}",
-                    page=None,
-                    section=r.get('title', 'Web Source'),
-                    score=r.get('score', 0.5)
-                )
-                for i, r in enumerate(web_search_result["results"])
-            ]
+            web_results = web_search_result.get("results", [])
+            logger.info(f"Processing {len(web_results)} web results for citations")
+            
+            web_citations = []
+            for i, r in enumerate(web_results):
+                try:
+                    logger.info(f"Processing result {i}: type={type(r)}, content={str(r)[:100]}...")
+                    if isinstance(r, dict):
+                        citation = Citation(
+                            text=r.get('content', r.get('title', ''))[:200] + "...",
+                            doc_id=f"web_{i}",
+                            page=None,
+                            section=r.get('title', 'Web Source'),
+                            score=r.get('score', 0.5)
+                        )
+                        web_citations.append(citation)
+                    else:
+                        logger.warning(f"Result {i} is not a dict: {type(r)}")
+                except Exception as e:
+                    logger.error(f"Error processing result {i}: {e}")
+                    continue
             
             all_citations = web_citations
             
@@ -328,7 +392,7 @@ async def ask_enhanced_question(request: AskRequest, current_user: dict = get_cu
 
 
 @app.post("/generate-search-queries")
-async def generate_search_queries(request: AskRequest, current_user: dict = get_current_user):
+async def generate_search_queries(request: AskRequest, current_user: dict = Depends(get_current_user)):
     """Generate intelligent search queries for a given prompt."""
     try:
         if not query_generator:
@@ -367,7 +431,7 @@ async def generate_search_queries(request: AskRequest, current_user: dict = get_
 
 
 @app.post("/ask-research", response_model=AskResponse)
-async def ask_research_question(request: AskRequest, current_user: dict = get_current_user):
+async def ask_research_question(request: AskRequest, current_user: dict = Depends(get_current_user)):
     """Ask a question with comprehensive research capabilities."""
     try:
         # Use comprehensive research system if available
@@ -452,7 +516,7 @@ async def ask_research_question(request: AskRequest, current_user: dict = get_cu
 
 
 @app.post("/test-research-models")
-async def test_research_models(request: AskRequest, current_user: dict = get_current_user):
+async def test_research_models(request: AskRequest, current_user: dict = Depends(get_current_user)):
     """Test different LLM models for research tasks."""
     try:
         if not comprehensive_research:
@@ -521,8 +585,124 @@ async def test_research_models(request: AskRequest, current_user: dict = get_cur
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# System Prompt Management Endpoints
+@app.get("/system-prompts")
+async def get_system_prompts(current_user: dict = Depends(get_current_user)):
+    """Get all available system prompts."""
+    try:
+        prompts = system_prompt_manager.list_prompts()
+        return {"prompts": prompts}
+    except Exception as e:
+        logger.error(f"Failed to get system prompts: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/system-prompts/{mode}")
+async def get_system_prompt(mode: str, current_user: dict = Depends(get_current_user)):
+    """Get system prompt for a specific mode."""
+    try:
+        prompt_info = system_prompt_manager.get_prompt_info(mode)
+        return prompt_info
+    except Exception as e:
+        logger.error(f"Failed to get system prompt for {mode}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/system-prompts/{mode}")
+async def update_system_prompt(mode: str, request: dict, current_user: dict = Depends(get_current_user)):
+    """Update system prompt for a mode."""
+    try:
+        prompt = request.get("prompt", "")
+        version = request.get("version", "latest")
+        
+        if not prompt:
+            raise HTTPException(status_code=400, detail="Prompt is required")
+        
+        # Validate prompt
+        validation = system_prompt_manager.validate_prompt(prompt)
+        if not validation["valid"]:
+            raise HTTPException(status_code=400, detail=f"Invalid prompt: {validation['issues']}")
+        
+        success = system_prompt_manager.update_prompt(mode, prompt, version)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update prompt")
+        
+        return {"message": "Prompt updated successfully", "validation": validation}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update system prompt for {mode}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/system-prompts/{mode}/reset")
+async def reset_system_prompt(mode: str, current_user: dict = Depends(get_current_user)):
+    """Reset system prompt to default."""
+    try:
+        success = system_prompt_manager.reset_to_default(mode)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to reset prompt")
+        
+        return {"message": "Prompt reset to default successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to reset system prompt for {mode}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# User Prompt Management Endpoints
+@app.get("/user-prompts")
+async def get_user_prompts(current_user: dict = Depends(get_current_user)):
+    """Get user's custom prompts."""
+    try:
+        user_id = current_user.get("username", "anonymous")
+        prompts = user_prompt_manager.get_user_prompts(user_id)
+        return {"prompts": prompts}
+    except Exception as e:
+        logger.error(f"Failed to get user prompts: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/user-prompts/{mode}")
+async def set_user_prompt(mode: str, request: dict, current_user: dict = Depends(get_current_user)):
+    """Set user's custom prompt for a mode."""
+    try:
+        user_id = current_user.get("username", "anonymous")
+        prompt = request.get("prompt", "")
+        
+        if not prompt:
+            raise HTTPException(status_code=400, detail="Prompt is required")
+        
+        # Validate prompt
+        validation = system_prompt_manager.validate_prompt(prompt)
+        if not validation["valid"]:
+            raise HTTPException(status_code=400, detail=f"Invalid prompt: {validation['issues']}")
+        
+        success = user_prompt_manager.set_user_prompt(user_id, mode, prompt)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to save user prompt")
+        
+        return {"message": "User prompt saved successfully", "validation": validation}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to save user prompt for {mode}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/user-prompts/{mode}")
+async def reset_user_prompt(mode: str, current_user: dict = Depends(get_current_user)):
+    """Reset user's custom prompt to default."""
+    try:
+        user_id = current_user.get("username", "anonymous")
+        success = user_prompt_manager.reset_user_prompt(user_id, mode)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to reset user prompt")
+        
+        return {"message": "User prompt reset to default successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to reset user prompt for {mode}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/generate-chat-title")
-async def generate_chat_title(request: dict, current_user: dict = get_current_user):
+async def generate_chat_title(request: dict, current_user: dict = Depends(get_current_user)):
     """Generate a meaningful chat title using LLM."""
     try:
         message = request.get("message", "")
@@ -567,7 +747,7 @@ Title:"""
 
 
 @app.get("/memory/profile/{user_id}")
-async def get_user_profile(user_id: str, current_user: dict = get_current_user):
+async def get_user_profile(user_id: str, current_user: dict = Depends(get_current_user)):
     """Get user memory profile."""
     try:
         if not user_memory:
@@ -582,7 +762,7 @@ async def get_user_profile(user_id: str, current_user: dict = get_current_user):
 
 
 @app.post("/memory/preference/{user_id}")
-async def store_user_preference(user_id: str, request: dict, current_user: dict = get_current_user):
+async def store_user_preference(user_id: str, request: dict, current_user: dict = Depends(get_current_user)):
     """Store a user preference."""
     try:
         if not user_memory:
@@ -603,7 +783,7 @@ async def store_user_preference(user_id: str, request: dict, current_user: dict 
 
 
 @app.get("/memory/insights/{user_id}")
-async def get_user_insights(user_id: str, category: str = "general", limit: int = 10, current_user: dict = get_current_user):
+async def get_user_insights(user_id: str, category: str = "general", limit: int = 10, current_user: dict = Depends(get_current_user)):
     """Get user insights."""
     try:
         if not user_memory:
@@ -618,7 +798,7 @@ async def get_user_insights(user_id: str, category: str = "general", limit: int 
 
 
 @app.post("/ask-obsidian", response_model=AskResponse)
-async def ask_obsidian_question(request: AskRequest, current_user: dict = get_current_user):
+async def ask_obsidian_question(request: AskRequest, current_user: dict = Depends(get_current_user)):
     """Ask a question with enhanced personal knowledge from Obsidian notes."""
     try:
         # Use Obsidian if available, otherwise fall back to standard search
@@ -639,8 +819,23 @@ async def ask_obsidian_question(request: AskRequest, current_user: dict = get_cu
                     for msg in request.conversation_history
                 ]
             
+            # Get system prompt for Obsidian mode
+            user_id = current_user.get("username", "anonymous")
+            system_prompt = user_prompt_manager.get_prompt_with_fallback(
+                user_id, "obsidian_only", system_prompt_manager.get_prompt("obsidian_only")
+            )
+            
             # Generate answer using production LLM
-            answer = retriever._generate_answer(request.query, combined_context, conversation_history)
+            answer = retriever._generate_answer(
+                request.query, 
+                combined_context, 
+                conversation_history, 
+                request.model, 
+                system_prompt,
+                request.temperature,
+                request.max_tokens,
+                request.top_k_sampling
+            )
             
             # Only Obsidian citations (no document citations)
             obsidian_citations = [
@@ -684,7 +879,7 @@ async def ask_obsidian_question(request: AskRequest, current_user: dict = get_cu
 
 
 @app.get("/stats")
-async def get_stats(current_user: dict = get_current_user):
+async def get_stats(current_user: dict = Depends(get_current_user)):
     """Get database statistics."""
     try:
         stats = retriever.get_stats()
@@ -791,4 +986,4 @@ async def generate_with_ollama(request: dict):
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return JSONResponse(content={"status": "healthy", "service": "eminiplayer-rag"})
+    return JSONResponse(content={"status": "healthy", "service": "tradingai-research-platform"})

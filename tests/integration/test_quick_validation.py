@@ -17,14 +17,12 @@ def test_data_sources():
     # Test query
     test_query = "What is trading?"
     test_data = {
-        "request": {
-            "query": test_query,
-            "mode": "qa",
-            "top_k": 5,
-            "temperature": 0.1,
-            "max_tokens": 1000,
-            "conversation_history": []
-        }
+        "query": test_query,
+        "mode": "qa",
+        "top_k": 5,
+        "temperature": 0.1,
+        "max_tokens": 1000,
+        "conversation_history": []
     }
     
     # Get auth token

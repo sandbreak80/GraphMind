@@ -32,6 +32,40 @@
 - On deployment: Run security scans
 - On test failure: Block merge/deployment
 
+## QA Suite Commands
+- Run comprehensive tests: `python3 tests/integration/test_comprehensive_suite_v2.py`
+- Run performance tests: `python3 tests/performance/test_performance_suite.py`
+- Run quick validation: `python3 tests/integration/test_quick_validation.py`
+- Run full QA suite: `./scripts/run_qa_suite.sh`
+
+## Test Categories
+1. **Comprehensive Tests**: All functionality including new features
+2. **Performance Tests**: Response times, load handling, memory usage
+3. **Quick Validation**: Data source exclusivity and basic functionality
+4. **Security Tests**: Authentication, authorization, input validation
+
+## Test Data Requirements
+- Use realistic test data
+- Test with different models (llama3.2:3b, llama3.1:latest)
+- Test all chat modes (RAG, Web, Obsidian, Research)
+- Test system prompt management
+- Test model switching functionality
+- Test chat export functionality
+- Test response time measurement
+
+## Performance Benchmarks
+- Single request response time: < 30 seconds
+- Concurrent requests: < 45 seconds max
+- API endpoints: < 5 seconds
+- Memory stability: < 50% degradation
+- Success rate: > 80%
+
+## Test Environment
+- Base URL: http://localhost:3001
+- Authentication: admin/admin123
+- Timeout: 30 seconds for chat requests
+- Timeout: 10 seconds for API requests
+
 ## Code Quality
 - Follow PEP 8 for Python code
 - Use TypeScript for frontend code

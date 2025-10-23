@@ -237,7 +237,9 @@ class MemoryAwareRAG:
         self.retriever = retriever
         self.memory = memory_system
     
-    def generate_with_memory(self, user_id: str, query: str, context: str, conversation_history: Optional[List[Dict[str, str]]] = None) -> str:
+    def generate_with_memory(self, user_id: str, query: str, context: str, conversation_history: Optional[List[Dict[str, str]]] = None, 
+                             model: Optional[str] = None, temperature: Optional[float] = None, 
+                             max_tokens: Optional[int] = None, top_k_sampling: Optional[int] = None) -> str:
         """Generate response with user memory context."""
         try:
             # Get memory context
@@ -256,14 +258,20 @@ USER QUESTION: {query}"""
             
             # Generate response using the retriever's LLM
             from app.ollama_client import OllamaClient
-            from app.config import PRODUCTION_LLM_MODEL, TEMPERATURE, MAX_TOKENS
+            from app.config import PRODUCTION_LLM_MODEL, TEMPERATURE, MAX_TOKENS, OLLAMA_TOP_K
             
-            ollama = OllamaClient(default_model=PRODUCTION_LLM_MODEL)
+            llm_model = model or PRODUCTION_LLM_MODEL
+            llm_temperature = temperature if temperature is not None else TEMPERATURE
+            llm_max_tokens = max_tokens if max_tokens is not None else MAX_TOKENS
+            llm_top_k = top_k_sampling if top_k_sampling is not None else OLLAMA_TOP_K
+            
+            ollama = OllamaClient(default_model=llm_model)
             response = ollama.generate(
                 prompt=full_context,
-                model=PRODUCTION_LLM_MODEL,
-                temperature=TEMPERATURE,
-                max_tokens=MAX_TOKENS,
+                model=llm_model,
+                temperature=llm_temperature,
+                max_tokens=llm_max_tokens,
+                top_k=llm_top_k,
                 timeout=300
             )
             

@@ -8,6 +8,7 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
+import { ExportAll } from './ChatExport'
 
 export function Sidebar() {
   const { 
@@ -38,16 +39,19 @@ export function Sidebar() {
           </button>
         </div>
         
-        <button
-          onClick={() => {
-            const { createChat } = useStore.getState()
-            createChat('New Chat')
-          }}
-          className="btn btn-primary w-full flex items-center justify-center space-x-2"
-        >
-          <PlusIcon className="h-4 w-4" />
-          <span>New Chat</span>
-        </button>
+        <div className="space-y-2">
+          <button
+            onClick={() => {
+              const { createChat } = useStore.getState()
+              createChat('New Chat')
+            }}
+            className="btn btn-primary w-full flex items-center justify-center space-x-2"
+          >
+            <PlusIcon className="h-4 w-4" />
+            <span>New Chat</span>
+          </button>
+          <ExportAll className="w-full" />
+        </div>
       </div>
 
       {/* Chat List */}
@@ -77,9 +81,21 @@ export function Sidebar() {
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     {formatDistanceToNow(new Date(chat.updatedAt), { addSuffix: true })}
                   </p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    {chat.messages.length} messages
-                  </p>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                      {chat.messages.length} messages
+                    </p>
+                    {chat.currentModel && (
+                      <span className="text-xs px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded">
+                        {chat.currentModel.split(':')[0]}
+                      </span>
+                    )}
+                    {chat.averageResponseTime && (
+                      <span className="text-xs text-green-600 dark:text-green-400">
+                        {chat.averageResponseTime.toFixed(1)}s avg
+                      </span>
+                    )}
+                  </div>
                 </div>
                 
                 <button
@@ -100,7 +116,7 @@ export function Sidebar() {
       {/* Footer */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700">
         <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
-          EminiPlayer RAG v1.0
+          TradingAI Research Platform v2.0
         </div>
       </div>
     </div>
