@@ -76,7 +76,7 @@ PDF_ENRICHMENT_MODEL = os.getenv("PDF_ENRICHMENT_MODEL", "gpt-oss:20b")  # Most 
 CHUNK_ENRICHMENT_MODEL = os.getenv("CHUNK_ENRICHMENT_MODEL", "llama3.1:latest")  # Balanced performance
 
 # High-Performance LLM Configuration (100GB RAM + 24 CPU cores)
-PRODUCTION_LLM_MODEL = os.getenv("PRODUCTION_LLM_MODEL", "llama3.2:latest")  # Best for strategy evaluation
+PRODUCTION_LLM_MODEL = os.getenv("PRODUCTION_LLM_MODEL", "llama3.1:latest")  # Best for RAG and strategy evaluation
 RESEARCH_LLM_MODEL = os.getenv("RESEARCH_LLM_MODEL", "gpt-oss:20b")  # Best for research and analysis
 MAX_TOKENS = int(os.getenv("MAX_TOKENS", "8000"))  # Massive responses with 100GB RAM
 TEMPERATURE = float(os.getenv("TEMPERATURE", "0.1"))  # Lower for consistent trading rules

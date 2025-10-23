@@ -1,20 +1,34 @@
 import axios from 'axios'
 import { useStore } from './store'
 
+// Centralized API URL determination
+export const getApiUrl = () => {
+  // Check if we're running in the browser (client-side)
+  if (typeof window !== 'undefined') {
+    // Check if we're in development mode (localhost)
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      // Use local backend for development
+      return 'http://localhost:8001'
+    } else {
+      // For production, the frontend is exposed via Cloudflare tunnel
+      // but the API is NOT exposed - it's internal to the Docker network
+      // The frontend uses Next.js API routes that proxy to the backend
+      // These routes handle the internal Docker network communication
+      return '/api'
+    }
+  }
+  // Use Docker service name for container-to-container communication
+  return 'http://rag-service:8000'
+}
+
 const api = axios.create({
   timeout: 300000, // 5 minutes for LLM/RAG processing
 })
 
 // Request interceptor
 api.interceptors.request.use((config) => {
-  // Check if we're running in the browser (client-side)
-  if (typeof window !== 'undefined') {
-    // Use the external URL when accessed from browser
-    config.baseURL = 'http://localhost:8001'
-  } else {
-    // Use Docker service name for container-to-container communication
-    config.baseURL = 'http://rag-service:8000'
-  }
+  // Set base URL using centralized function
+  config.baseURL = getApiUrl()
   
   // Add authentication header if available
   const { authToken } = useStore.getState()
@@ -140,11 +154,10 @@ export const apiClient = {
     onError: (error: Error) => void
   ) {
     try {
-      const { settings } = useStore.getState()
       const endpoint = request.mode === 'obsidian' ? '/ask-obsidian' : 
                      request.mode === 'spec' ? '/ask' : '/ask-enhanced'
       
-      const response = await fetch(`${settings.apiUrl}${endpoint}`, {
+      const response = await fetch(`${getApiUrl()}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

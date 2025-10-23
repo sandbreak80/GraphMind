@@ -20,7 +20,9 @@ export function LoginForm({ onLogin }: LoginFormProps) {
     setError('')
 
     try {
-      const response = await fetch('http://localhost:8001/auth/login', {
+      // Import getApiUrl dynamically to avoid circular dependency
+      const { getApiUrl } = await import('../lib/api')
+      const response = await fetch(`${getApiUrl()}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',

@@ -3,11 +3,12 @@
  */
 
 import { useStore } from './store'
+import { getApiUrl } from './api'
 
 export async function generateChatTitle(firstMessage: string): Promise<string> {
   try {
     // Use the API to generate a title using LLM
-    const response = await fetch('/api/generate-chat-title', {
+    const response = await fetch(`${getApiUrl()}/generate-chat-title`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

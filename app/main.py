@@ -17,6 +17,8 @@ from app.searxng_client import create_searxng_client, EnhancedRAGWithSearXNG
 from app.obsidian_mcp_client import create_obsidian_client, EnhancedRAGWithObsidian
 from app.query_generator import IntelligentQueryGenerator, EnhancedWebSearch
 from app.research_engine import ComprehensiveResearchSystem
+from app.web_parser import WebPageParser, EnhancedWebSearch as ParsedWebSearch
+from app.memory_system import UserMemory, MemoryAwareRAG
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,12 +34,14 @@ obsidian_rag: Optional[EnhancedRAGWithObsidian] = None
 query_generator: Optional[IntelligentQueryGenerator] = None
 enhanced_web_search: Optional[EnhancedWebSearch] = None
 comprehensive_research: Optional[ComprehensiveResearchSystem] = None
+user_memory: Optional[UserMemory] = None
+memory_aware_rag: Optional[MemoryAwareRAG] = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize services on startup."""
-    global ingestor, retriever, spec_extractor, enhanced_rag, mcp_rag, searxng_rag, obsidian_rag, query_generator, enhanced_web_search, comprehensive_research
+    global ingestor, retriever, spec_extractor, enhanced_rag, mcp_rag, searxng_rag, obsidian_rag, query_generator, enhanced_web_search, comprehensive_research, user_memory, memory_aware_rag
     
     logger.info("Initializing high-performance RAG service...")
     ingestor = PDFIngestor()
@@ -59,6 +63,11 @@ async def lifespan(app: FastAPI):
         logger.info(f"SearXNG integration enabled at {searxng_url}")
         logger.info("Enhanced web search with intelligent query generation enabled")
         logger.info("Comprehensive research system enabled")
+    
+    # Initialize user memory system
+    user_memory = UserMemory()
+    memory_aware_rag = MemoryAwareRAG(retriever, user_memory)
+    logger.info("User memory system enabled")
     
     # Initialize enhanced RAG with web search (fallback)
     web_search_provider = create_web_search_provider()
@@ -195,11 +204,42 @@ async def ask_question(request: AskRequest, current_user: dict = get_current_use
                     for msg in request.conversation_history
                 ]
             
-            result = retriever.answer_query(
-                query=request.query,
-                top_k=request.top_k,
-                conversation_history=conversation_history
-            )
+            # Use memory-aware RAG if available
+            if memory_aware_rag:
+                # Get document results
+                doc_results = retriever.retrieve(request.query, top_k=request.top_k)
+                combined_context = "\n".join([r['text'] for r in doc_results])
+                
+                # Generate with memory
+                answer = memory_aware_rag.generate_with_memory(
+                    "anonymous", 
+                    request.query, 
+                    combined_context, 
+                    conversation_history
+                )
+                
+                # Create citations
+                citations = [
+                    Citation(
+                        text=r['text'][:200] + "...",
+                        doc_id=r['metadata'].get('doc_id') or r['metadata'].get('file_name', 'unknown'),
+                        page=r['metadata'].get('page'),
+                        section=r['metadata'].get('section') or r['metadata'].get('doc_type', 'unknown'),
+                        score=r['rerank_score']
+                    )
+                    for r in doc_results
+                ]
+                
+                result = {
+                    "answer": answer,
+                    "citations": citations
+                }
+            else:
+                result = retriever.answer_query(
+                    query=request.query,
+                    top_k=request.top_k,
+                    conversation_history=conversation_history
+                )
             return AskResponse(
                 query=request.query,
                 answer=result["answer"],
@@ -231,30 +271,16 @@ async def ask_enhanced_question(request: AskRequest, current_user: dict = get_cu
                 conversation_history
             )
             
-            # Get document results from standard retrieval
-            doc_results = retriever.retrieve(request.query, top_k=10)
-            
-            # Generate answer using enhanced context
-            doc_context = "\n".join([r['text'] for r in doc_results])
+            # WEB SEARCH ONLY MODE - No document retrieval
+            # Generate answer using ONLY web context (no documents)
             web_context = "\n".join([r.get('content', '') for r in web_search_result["results"]])
             
-            combined_context = f"DOCUMENT CONTEXT:\n{doc_context}\n\nREAL-TIME WEB CONTEXT:\n{web_context}"
+            combined_context = f"REAL-TIME WEB CONTEXT:\n{web_context}"
             
             # Generate answer using production LLM
             answer = retriever._generate_answer(request.query, combined_context, conversation_history)
             
-            # Combine citations
-            doc_citations = [
-                Citation(
-                    text=r['text'][:200] + "...",
-                    doc_id=r['metadata'].get('doc_id') or r['metadata'].get('file_name', 'unknown'),
-                    page=r['metadata'].get('page'),
-                    section=r['metadata'].get('section') or r['metadata'].get('doc_type', 'unknown'),
-                    score=r['rerank_score']
-                )
-                for r in doc_results
-            ]
-            
+            # Only web citations (no document citations)
             web_citations = [
                 Citation(
                     text=r.get('content', r.get('title', ''))[:200] + "...",
@@ -266,7 +292,7 @@ async def ask_enhanced_question(request: AskRequest, current_user: dict = get_cu
                 for i, r in enumerate(web_search_result["results"])
             ]
             
-            all_citations = doc_citations + web_citations
+            all_citations = web_citations
             
             return AskResponse(
                 query=request.query,
@@ -274,7 +300,7 @@ async def ask_enhanced_question(request: AskRequest, current_user: dict = get_cu
                 citations=all_citations,
                 mode="enhanced",
                 web_enabled=True,
-                total_sources=len(doc_results) + len(web_search_result["results"]),
+                total_sources=len(web_search_result["results"]),
                 search_metadata={
                     "generated_queries": web_search_result.get("generated_queries", []),
                     "entities_found": web_search_result.get("entities_found", []),
@@ -540,19 +566,70 @@ Title:"""
         return {"title": "New Chat"}
 
 
+@app.get("/memory/profile/{user_id}")
+async def get_user_profile(user_id: str, current_user: dict = get_current_user):
+    """Get user memory profile."""
+    try:
+        if not user_memory:
+            raise HTTPException(status_code=503, detail="Memory system not available")
+        
+        profile = user_memory.get_user_profile(user_id)
+        return profile
+        
+    except Exception as e:
+        logger.error(f"Failed to get user profile: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/memory/preference/{user_id}")
+async def store_user_preference(user_id: str, request: dict, current_user: dict = get_current_user):
+    """Store a user preference."""
+    try:
+        if not user_memory:
+            raise HTTPException(status_code=503, detail="Memory system not available")
+        
+        key = request.get("key")
+        value = request.get("value")
+        
+        if not key or value is None:
+            raise HTTPException(status_code=400, detail="Key and value are required")
+        
+        success = user_memory.store_preference(user_id, key, value)
+        return {"success": success}
+        
+    except Exception as e:
+        logger.error(f"Failed to store preference: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/memory/insights/{user_id}")
+async def get_user_insights(user_id: str, category: str = "general", limit: int = 10, current_user: dict = get_current_user):
+    """Get user insights."""
+    try:
+        if not user_memory:
+            raise HTTPException(status_code=503, detail="Memory system not available")
+        
+        insights = user_memory.get_key_insights(user_id, category, limit)
+        return {"insights": insights}
+        
+    except Exception as e:
+        logger.error(f"Failed to get insights: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/ask-obsidian", response_model=AskResponse)
 async def ask_obsidian_question(request: AskRequest, current_user: dict = get_current_user):
     """Ask a question with enhanced personal knowledge from Obsidian notes."""
     try:
         # Use Obsidian if available, otherwise fall back to standard search
         if obsidian_rag:
-            result = await obsidian_rag.search_with_personal_knowledge(request.query, include_obsidian=True)
+            # OBSIDIAN ONLY MODE - No document retrieval
+            result = await obsidian_rag.search_obsidian_only(request.query)
             
-            # Generate answer using enhanced context
-            doc_context = "\n".join([r['text'] for r in result["document_results"]])
+            # Generate answer using ONLY Obsidian context (no documents)
             obsidian_context = "\n".join([r['text'] for r in result["obsidian_results"]])
             
-            combined_context = f"DOCUMENT CONTEXT:\n{doc_context}\n\nPERSONAL KNOWLEDGE (OBSIDIAN):\n{obsidian_context}"
+            combined_context = f"PERSONAL KNOWLEDGE (OBSIDIAN):\n{obsidian_context}"
             
             # Prepare conversation history
             conversation_history = None
@@ -565,18 +642,7 @@ async def ask_obsidian_question(request: AskRequest, current_user: dict = get_cu
             # Generate answer using production LLM
             answer = retriever._generate_answer(request.query, combined_context, conversation_history)
             
-            # Combine citations
-            doc_citations = [
-                Citation(
-                    text=r['text'][:200] + "...",
-                    doc_id=r['metadata'].get('doc_id') or r['metadata'].get('file_name', 'unknown'),
-                    page=r['metadata'].get('page'),
-                    section=r['metadata'].get('section') or r['metadata'].get('doc_type', 'unknown'),
-                    score=r['rerank_score']
-                )
-                for r in result["document_results"]
-            ]
-            
+            # Only Obsidian citations (no document citations)
             obsidian_citations = [
                 Citation(
                     text=r['text'][:200] + "...",
@@ -588,7 +654,7 @@ async def ask_obsidian_question(request: AskRequest, current_user: dict = get_cu
                 for r in result["obsidian_results"]
             ]
             
-            all_citations = doc_citations + obsidian_citations
+            all_citations = obsidian_citations
             
             return AskResponse(
                 query=request.query,

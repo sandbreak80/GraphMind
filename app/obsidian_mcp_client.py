@@ -333,6 +333,43 @@ class EnhancedRAGWithObsidian:
             "obsidian_enabled": self.obsidian is not None
         }
     
+    async def search_obsidian_only(self, query: str) -> Dict[str, Any]:
+        """Search ONLY Obsidian notes (no document retrieval)."""
+        obsidian_results = []
+        if self.knowledge_provider:
+            try:
+                # Get relevant personal notes
+                obsidian_results = await self.knowledge_provider.get_relevant_notes(query)
+                
+                # Format for consistency with document results
+                formatted_obsidian = []
+                for note in obsidian_results:
+                    formatted_obsidian.append({
+                        'text': note['content'],
+                        'metadata': {
+                            'doc_id': f"obsidian_{note['path']}",
+                            'title': note['title'],
+                            'path': note['path'],
+                            'tags': note['tags'],
+                            'last_modified': note['last_modified'],
+                            'source': 'obsidian'
+                        },
+                        'score': note['score'],
+                        'rerank_score': note['score']
+                    })
+                
+                obsidian_results = formatted_obsidian
+                
+            except Exception as e:
+                logger.warning(f"Obsidian search failed: {e}")
+        
+        return {
+            "document_results": [],  # No document results
+            "obsidian_results": obsidian_results,
+            "total_sources": len(obsidian_results),
+            "obsidian_enabled": self.obsidian is not None
+        }
+    
     async def get_comprehensive_knowledge(self, query: str) -> Dict[str, Any]:
         """Get comprehensive knowledge from both documents and personal notes."""
         # Get combined results

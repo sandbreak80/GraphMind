@@ -49,7 +49,6 @@ export interface User {
 }
 
 export interface Settings {
-  apiUrl: string
   selectedModel: string
   temperature: number
   maxTokens: number
@@ -111,19 +110,7 @@ interface AppState {
   initializeApp: () => Promise<void>
 }
 
-// Determine API URL based on environment
-const getApiUrl = () => {
-  // Check if we're running in the browser (client-side)
-  if (typeof window !== 'undefined') {
-    // Use the external URL when accessed from browser
-    return 'http://localhost:8001'
-  }
-  // Use Docker service name for container-to-container communication
-  return 'http://rag-service:8000'
-}
-
 const defaultSettings: Settings = {
-  apiUrl: getApiUrl(),
   selectedModel: 'qwen2.5-coder:14b',
   temperature: 0.1,
   maxTokens: 8000,
@@ -379,7 +366,9 @@ export const useStore = create<AppState>()(
       initializeApp: async () => {
         // Load models from Ollama
         try {
-          const response = await fetch(`${get().settings.apiUrl}/ollama/models`)
+          // Import getApiUrl dynamically to avoid circular dependency
+          const { getApiUrl } = await import('./api')
+          const response = await fetch(`${getApiUrl()}/ollama/models`)
           if (response.ok) {
             const data = await response.json()
             set({ models: data.models || [] })

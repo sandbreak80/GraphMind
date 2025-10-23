@@ -1,336 +1,256 @@
-# EminiPlayer - Advanced RAG Trading System
+# EminiPlayer - Advanced Trading RAG System
 
-A comprehensive Retrieval-Augmented Generation (RAG) system designed for trading strategy development, featuring multi-format document processing, video transcription, web search integration, and Obsidian note integration.
+A comprehensive Retrieval-Augmented Generation (RAG) system designed for trading and financial analysis, combining document knowledge, web search, and personal notes to provide intelligent responses.
 
 ## 🚀 Features
 
-### Recent Improvements (Latest Version)
-- **🧠 Intelligent Search System**: LLM-powered query generation for enhanced web search
-- **Enhanced Text Input**: Large text area supporting very long prompts without truncation
-- **Real-time Character Counter**: Visual feedback for long content
-- **Improved UI/UX**: Better user experience with auto-resizing text areas
-- **Robust Error Handling**: Graceful error handling and user feedback
-- **Authentication System**: Secure JWT-based authentication
-- **Source Citation Display**: Clear source attribution with relevance scores
-- **Responsive Design**: Optimized for various screen sizes
+### Chat Modes
+- **RAG Only**: Document-based responses from PDFs, video transcripts, and processed content
+- **Web Search Only**: Real-time web search results for current market information
+- **Obsidian Only**: Personal knowledge base integration for personalized advice
+- **Comprehensive Research**: Combined document and web search for comprehensive analysis
 
-### Core RAG Capabilities
-- **Multi-Format Document Processing**: PDFs, Word docs, Excel files, text files
-- **Video Transcription**: MP4/WEBM support with GPU-accelerated Whisper
-- **LLM-Enhanced Processing**: AI-powered content enrichment and summarization
-- **Hybrid Retrieval**: BM25 + Embedding search + Cross-encoder reranking
-- **Vector Database**: ChromaDB with persistent storage
+### Advanced Capabilities
+- **User Memory System**: Persistent storage of user preferences, chat history, and insights
+- **Model Switching**: Change AI models mid-conversation
+- **Smart Chat Naming**: AI-powered chat title generation
+- **Response Time Tracking**: Monitor and display response times
+- **Export Functionality**: Export chats in Markdown format
+- **Customizable System Prompts**: User-editable system prompts for each mode
 
-### Integration Features
-- **🧠 Intelligent Web Search**: LLM-powered query generation for enhanced search results
-- **Web Search**: SearXNG integration for real-time information
-- **Obsidian Integration**: Access personal notes via MCP protocol
-- **Ollama Integration**: Local LLM support with multiple models
-- **Modern Web UI**: Next.js frontend with chat interface
+### Technical Features
+- **Docker-based Deployment**: Containerized services with Docker Compose
+- **Cloudflare Integration**: Secure external access via Cloudflare Tunnels
+- **Vector Database**: ChromaDB for efficient document retrieval
+- **Multiple LLM Support**: Ollama integration with various models
+- **Real-time Web Search**: SearXNG integration for current information
+- **Personal Knowledge**: Obsidian MCP client for personal notes
 
-### Performance Optimizations
-- **GPU Acceleration**: NVIDIA CUDA support for embeddings and LLM
-- **Batch Processing**: Optimized for high-throughput processing
-- **Caching**: Aggressive caching for improved performance
-- **Memory Management**: Optimized for large document collections
-
-## 🏗️ Architecture
+## 📁 Project Structure
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │   Backend       │    │   External      │
-│   (Next.js)     │◄──►│   (FastAPI)     │◄──►│   Services      │
-│   Port: 3001    │    │   Port: 8001    │    │                 │
-└─────────────────┘    └─────────────────┘    │ • Ollama        │
-                              │                │ • SearXNG       │
-                              ▼                │ • Obsidian      │
-                       ┌─────────────────┐    │ • ChromaDB      │
-                       │   RAG Engine    │    └─────────────────┘
-                       │                 │
-                       │ • Document      │
-                       │   Processing    │
-                       │ • Embeddings    │
-                       │ • Retrieval     │
-                       │ • Reranking     │
-                       └─────────────────┘
+EminiPlayer/
+├── app/                          # Backend FastAPI application
+│   ├── auth.py                   # Authentication system
+│   ├── memory_system.py          # User memory management
+│   ├── retrieval.py              # RAG retrieval system
+│   ├── web_search.py             # Web search integration
+│   ├── obsidian_mcp_client.py    # Obsidian integration
+│   └── main.py                   # Main FastAPI application
+├── frontend/                     # Next.js frontend
+│   ├── components/               # React components
+│   ├── lib/                      # Utility libraries
+│   └── app/                      # Next.js app directory
+├── docs/                         # Comprehensive documentation
+│   ├── architecture/             # System architecture docs
+│   ├── guides/                   # User guides
+│   ├── api/                      # API documentation
+│   └── testing/                  # Testing documentation
+├── tests/                        # Test suite
+│   ├── unit/                     # Unit tests
+│   ├── integration/              # Integration tests
+│   └── e2e/                      # End-to-end tests
+├── scripts/                      # Utility scripts
+├── config/                       # Configuration files
+└── .github/workflows/            # GitHub Actions CI/CD
 ```
 
-## 📋 Prerequisites
+## 🛠️ Quick Start
 
-### System Requirements
-- **OS**: Linux (Ubuntu 20.04+ recommended)
-- **RAM**: 32GB+ (100GB recommended for large datasets)
-- **CPU**: 8+ cores (24 cores recommended)
-- **GPU**: NVIDIA GPU with CUDA support (RTX 4070+ recommended)
-- **Storage**: 100GB+ free space
+### Prerequisites
+- Docker and Docker Compose
+- Node.js 18+
+- Python 3.10+
+- Ollama (for LLM inference)
 
-### Software Requirements
-- Docker & Docker Compose
-- NVIDIA Container Toolkit
-- Git
+### Installation
 
-## 🚀 Quick Start
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/EminiPlayer.git
+   cd EminiPlayer
+   ```
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/yourusername/EminiPlayer.git
-cd EminiPlayer
-```
+2. **Start the services**
+   ```bash
+   docker-compose up -d
+   ```
 
-### 2. Configure Environment
-```bash
-cp .env.template .env
-# Edit .env with your configuration
-```
+3. **Access the application**
+   - Frontend: http://localhost:3001
+   - Backend API: http://localhost:8001 (internal)
 
-### 3. Start Services
-```bash
-# Start all services
-docker compose up -d
+### Configuration
 
-# Check status
-docker compose ps
-```
+1. **Environment Variables**
+   ```bash
+   # Copy example configuration
+   cp .env.example .env
+   
+   # Edit configuration
+   nano .env
+   ```
 
-### 4. Access the System
-- **Frontend**: http://localhost:3001
-- **Backend API**: http://localhost:8001
-- **API Documentation**: http://localhost:8001/docs
+2. **Ollama Setup**
+   ```bash
+   # Install Ollama
+   curl -fsSL https://ollama.ai/install.sh | sh
+   
+   # Pull required models
+   ollama pull qwen2.5-coder:14b
+   ```
+
+3. **Obsidian Setup** (Optional)
+   - Install Obsidian
+   - Set up MCP server
+   - Configure vault path
 
 ## 📚 Documentation
 
-### Core Components
-- [Setup Guide](SETUP.md) - Detailed installation instructions
-- [Frontend Setup](FRONTEND_SETUP.md) - Web interface configuration
-- [Production Deployment](PRODUCTION_DEPLOYMENT.md) - Production deployment guide
+### Architecture
+- [System Architecture](docs/architecture/ARCHITECTURE.md)
+- [User Memory System](docs/architecture/USER_MEMORY_SYSTEM.md)
+- [Chat System](docs/architecture/CHAT_SYSTEM.md)
+- [System Prompts](docs/architecture/SYSTEM_PROMPTS.md)
 
-### Integration Guides
-- [Intelligent Search Guide](INTELLIGENT_SEARCH_GUIDE.md) - LLM-powered query generation
-- [Obsidian Setup](OBSIDIAN_SETUP_GUIDE.md) - Personal notes integration
-- [SearXNG Integration](OBSIDIAN_API_SETUP.md) - Web search setup
+### Guides
+- [Quick Start Guide](docs/guides/QUICKSTART.md)
+- [Setup Instructions](docs/guides/SETUP.md)
+- [Deployment Guide](docs/guides/DEPLOYMENT.md)
 
-### Technical Documentation
-- [System Overview](FINAL_SYSTEM_OVERVIEW.md) - Complete system architecture
-- [Metadata Best Practices](METADATA_BEST_PRACTICES.md) - Data organization
-- [Security Guide](SECURITY.md) - Security considerations
+### API Reference
+- [API Documentation](docs/api/API.md)
+- [Authentication](docs/api/AUTH.md)
+- [Chat Endpoints](docs/api/CHAT.md)
 
-## 🔧 Configuration
+### Testing
+- [QA Automation](docs/testing/QA_AUTOMATION.md)
+- [Test Suite](docs/testing/TEST_SUITE.md)
+- [Performance Testing](docs/testing/PERFORMANCE.md)
 
-### Environment Variables
+## 🧪 Testing
 
-#### Core Settings
+### Run Tests
 ```bash
-# Collection Configuration
-COLLECTION_NAME=emini_docs
+# Run all tests
+python -m pytest tests/ -v
 
-# Retrieval Configuration (optimized for performance)
-BM25_TOP_K=20
-EMBEDDING_TOP_K=20
-RERANK_TOP_K=5
+# Run specific test categories
+python -m pytest tests/unit/ -v
+python -m pytest tests/integration/ -v
+python -m pytest tests/e2e/ -v
 
-# LLM Configuration
-OLLAMA_BASE_URL=http://host.docker.internal:11434
-OLLAMA_MODEL=qwen2.5-coder:14b
-MAX_TOKENS=8000
-TEMPERATURE=0.1
+# Run with coverage
+python -m pytest tests/ --cov=app --cov-report=html
 ```
 
-#### Integration Settings
+### Test Categories
+- **Unit Tests**: Individual component testing
+- **Integration Tests**: API and service integration
+- **End-to-End Tests**: Full user workflow testing
+- **Performance Tests**: Response time and load testing
+
+## 🚀 Deployment
+
+### Production Deployment
 ```bash
-# Web Search
-SEARXNG_URL=http://192.168.50.236:8888/search
+# Build and deploy
+docker-compose -f docker-compose.prod.yml up -d
 
-# Obsidian Integration
-OBSIDIAN_API_URL=https://192.168.50.43:27124
-OBSIDIAN_API_KEY=your_api_key_here
-OBSIDIAN_VAULT_PATH=/workspace/obsidian_vault
+# Configure Cloudflare Tunnel
+cloudflared tunnel create eminiplayer
+cloudflared tunnel route dns eminiplayer emini.riffyx.com
 ```
 
-### Docker Compose Services
+### Environment Configuration
+- **Development**: Local Docker containers
+- **Production**: Cloudflare Tunnel + Docker
+- **Staging**: Separate environment for testing
 
-#### rag-service
-- **Image**: Custom Python FastAPI application
-- **Port**: 8001
-- **Volumes**: 
-  - `./app:/workspace/app`
-  - `./chroma_db:/workspace/chroma_db`
-  - `./rag_docs_zone:/workspace/rag_docs_zone:ro`
-  - `./obsidian_vault:/workspace/obsidian_vault:ro`
+## 🔧 Development
 
-#### frontend
-- **Image**: Custom Next.js application
-- **Port**: 3001
-- **Environment**: `NEXT_PUBLIC_API_URL=http://localhost:8001`
+### Adding New Features
+1. Create feature branch
+2. Implement feature with tests
+3. Update documentation
+4. Run test suite
+5. Submit pull request
 
-## 📊 Usage
+### Code Quality
+- Follow PEP 8 for Python
+- Use TypeScript for frontend
+- Add comprehensive tests
+- Update documentation
+- Follow security best practices
 
-### API Endpoints
+### Testing Requirements
+- All new features must include tests
+- Test coverage must be >80%
+- All tests must pass before merge
+- Performance tests for critical paths
 
-#### Core RAG Endpoints
-- `POST /ask` - Standard RAG query
-- `POST /ask-enhanced` - Enhanced RAG with intelligent web search
-- `POST /ask-obsidian` - RAG with Obsidian integration
-- `POST /generate-search-queries` - Generate intelligent search queries
-- `POST /ingest` - Document ingestion
-- `GET /stats` - System statistics
+## 📊 Monitoring
 
-#### Ollama Integration
-- `GET /ollama/models` - List available models
-- `POST /ollama/generate` - Generate text with Ollama
+### Health Checks
+- Backend: `GET /health`
+- Frontend: Built-in health monitoring
+- Database: Connection monitoring
+- External Services: Service availability
 
-#### Utility Endpoints
-- `GET /health` - Health check
-- `GET /` - API information
+### Metrics
+- Response times by mode
+- User engagement metrics
+- Memory usage statistics
+- Error rates and patterns
 
-### 🧠 Intelligent Search System
-
-The system now features **LLM-powered query generation** that transforms user prompts into targeted, context-aware web searches:
-
-#### How It Works
-1. **Prompt Analysis**: LLM analyzes user intent and extracts entities
-2. **Query Generation**: Creates 3-5 targeted search queries per prompt
-3. **Multi-Query Search**: Executes searches across different angles
-4. **Result Synthesis**: Combines and ranks results by relevance
-
-#### Example
-```
-User: "What's the current market sentiment for ES futures?"
-
-Generated Queries:
-- "ES futures market sentiment today"
-- "E-mini S&P 500 market analysis current conditions"  
-- "ES futures trading sentiment indicators"
-- "S&P 500 futures market outlook today"
-```
-
-#### Benefits
-- **3-5x More Relevant Results**: Context-aware search strategies
-- **Comprehensive Coverage**: Multiple search angles per question
-- **Entity Recognition**: Automatically detects symbols, dates, concepts
-- **Conversation Context**: Considers previous chat history
-
-### Frontend Interface
-
-The web interface provides:
-- **Chat Interface**: Interactive conversation with the RAG system
-- **Model Selection**: Choose from available Ollama models
-- **Feature Toggles**: Enable/disable RAG, web search, and Obsidian
-- **Settings Panel**: Configure API endpoints and preferences
-- **Chat History**: Persistent conversation history
-- **Enhanced Text Input**: Large text area supporting long prompts (up to 50,000 characters)
-- **Real-time Character Counter**: Shows character count for long prompts
-- **Auto-resize Textarea**: Automatically expands for long content
-- **Source Citations**: Displays source documents with relevance scores
-- **Authentication**: Secure login system with JWT tokens
-
-## 🔍 Document Processing
-
-### Supported Formats
-- **PDFs**: Using Docling for structure-aware extraction
-- **Videos**: MP4/WEBM with Whisper transcription
-- **Office Docs**: Word, Excel, PowerPoint
-- **Text Files**: Markdown, plain text
-
-### Processing Pipeline
-1. **Document Ingestion**: Multi-format document processing
-2. **Content Extraction**: Structure-aware chunking
-3. **AI Enrichment**: LLM-powered metadata generation
-4. **Embedding Generation**: BAAI/bge-m3 embeddings
-5. **Vector Storage**: ChromaDB with persistent storage
-
-### Video Processing
-- **Transcription**: GPU-accelerated Whisper
-- **LLM Enhancement**: AI-powered content enrichment
-- **Caching**: Processed transcripts cached to avoid reprocessing
-
-## 🚀 Performance Optimization
-
-### Retrieval Optimization
-- **Hybrid Search**: BM25 + Embedding + Reranking
-- **Batch Processing**: Optimized batch sizes for embeddings
-- **Caching**: Aggressive caching for models and embeddings
-- **Memory Management**: Efficient memory usage for large datasets
-
-### GPU Acceleration
-- **CUDA Support**: NVIDIA GPU acceleration
-- **Model Optimization**: Optimized model loading and inference
-- **Batch Processing**: GPU-optimized batch processing
+### Logging
+- Structured logging throughout
+- Error tracking and alerting
+- Performance monitoring
+- Security event logging
 
 ## 🔒 Security
 
 ### Authentication
-- **API Keys**: Secure API key management
-- **CORS**: Configured cross-origin resource sharing
-- **HTTPS**: SSL/TLS support for production
+- JWT-based authentication
+- Secure token storage
+- Session management
+- User data isolation
 
-### Data Privacy
-- **Local Processing**: All processing done locally
-- **No External APIs**: No data sent to external services
-- **Secure Storage**: Encrypted storage for sensitive data
+### Data Protection
+- Encrypted data storage
+- Secure API communication
+- User data privacy
+- Regular security scans
 
-## 🐛 Troubleshooting
-
-### Common Issues
-
-#### Text Input Truncation (RESOLVED)
-- **Issue**: Long prompts were being cut off in the text input
-- **Solution**: Enhanced text area with no character limits and auto-resize functionality
-- **Status**: ✅ Fixed in latest version
-
-#### UI Error Messages (RESOLVED)
-- **Issue**: "Sorry, I encountered an error" messages appearing
-- **Solution**: Improved error handling and API request formatting
-- **Status**: ✅ Fixed in latest version
-
-#### Collection Not Found
-```bash
-# Check collection status
-curl http://localhost:8001/stats
-
-# Recreate collection
-docker exec emini-rag python3 -c "
-from app.ingest import PDFIngestor
-ingestor = PDFIngestor()
-ingestor.chroma_client.delete_collection('emini_docs')
-ingestor.collection = ingestor.chroma_client.create_collection('emini_docs')
-"
-```
-
-#### Performance Issues
-```bash
-# Check system resources
-docker stats
-
-# Monitor logs
-docker logs emini-rag --tail 50
-
-# Restart services
-docker compose restart
-```
-
-#### Frontend Issues
-```bash
-# Check frontend logs
-docker logs emini-frontend --tail 50
-
-# Rebuild frontend
-docker compose build frontend
-docker compose up -d frontend
-```
-
-### Logs and Monitoring
-- **Backend Logs**: `docker logs emini-rag`
-- **Frontend Logs**: `docker logs emini-frontend`
-- **System Stats**: `docker stats`
-- **API Health**: `curl http://localhost:8001/health`
+### Best Practices
+- Input validation
+- SQL injection prevention
+- XSS protection
+- CSRF protection
 
 ## 🤝 Contributing
 
+### Development Setup
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+2. Create feature branch
+3. Set up development environment
+4. Make changes with tests
+5. Submit pull request
+
+### Code Standards
+- Follow existing code style
+- Add comprehensive tests
+- Update documentation
+- Include examples
+- Follow security guidelines
+
+### Pull Request Process
+1. Ensure all tests pass
+2. Update documentation
+3. Add changelog entry
+4. Request review
+5. Address feedback
 
 ## 📄 License
 
@@ -338,21 +258,34 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- **Docling**: Advanced PDF processing
-- **ChromaDB**: Vector database
-- **Ollama**: Local LLM inference
-- **SearXNG**: Privacy-focused search
-- **Obsidian**: Personal knowledge management
-- **FastAPI**: Modern Python web framework
-- **Next.js**: React framework
+- Ollama for LLM inference
+- SearXNG for web search
+- Obsidian for personal knowledge management
+- FastAPI for the backend framework
+- Next.js for the frontend framework
 
 ## 📞 Support
 
-For support and questions:
-- Create an issue on GitHub
-- Check the documentation
-- Review the troubleshooting guide
+- **Documentation**: [docs/](docs/)
+- **Issues**: [GitHub Issues](https://github.com/yourusername/EminiPlayer/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourusername/EminiPlayer/discussions)
+
+## 🔄 Changelog
+
+### Recent Updates
+- ✅ Fixed data source exclusivity issues
+- ✅ Implemented comprehensive test suite
+- ✅ Added user memory system
+- ✅ Created extensive documentation
+- ✅ Set up QA automation
+
+### Upcoming Features
+- 🔄 Model switching mid-chat
+- 🔄 Chat export functionality
+- 🔄 Response time measurement
+- 🔄 Smart chat naming
+- 🔄 System prompt customization
 
 ---
 
-**EminiPlayer** - Building the future of AI-powered trading strategy development.
+**EminiPlayer** - Advanced Trading RAG System for Intelligent Financial Analysis

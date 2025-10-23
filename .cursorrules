@@ -1,0 +1,82 @@
+# EminiPlayer QA Automation Rules
+
+## Test Requirements
+- All new features must include unit tests
+- All API changes must include integration tests
+- All user workflows must include e2e tests
+- Test coverage must be >80%
+- All tests must pass before merge
+
+## Test Execution
+- Run tests automatically on every change
+- Run full test suite on pull requests
+- Run performance tests on main branch
+- Run security scans on all changes
+
+## Test Quality
+- Tests must be deterministic and reliable
+- Tests must clean up after themselves
+- Tests must not depend on external services
+- Tests must be fast and efficient
+
+## Test Documentation
+- All test files must have docstrings
+- Complex test logic must be commented
+- Test data must be clearly documented
+- Test failures must be actionable
+
+## Automated Actions
+- On code change: Run unit tests
+- On pull request: Run full test suite
+- On merge to main: Run performance tests
+- On deployment: Run security scans
+- On test failure: Block merge/deployment
+
+## Code Quality
+- Follow PEP 8 for Python code
+- Use TypeScript for frontend code
+- Add comprehensive docstrings
+- Include type hints for Python
+- Use meaningful variable names
+
+## Documentation
+- Update documentation with every change
+- Include examples in documentation
+- Keep architecture docs current
+- Document all API changes
+- Maintain user guides
+
+## Security
+- Validate all user inputs
+- Use secure authentication
+- Protect sensitive data
+- Regular security scans
+- Follow security best practices
+
+## Performance
+- Monitor response times
+- Optimize database queries
+- Use efficient algorithms
+- Cache when appropriate
+- Profile performance regularly
+
+## Memory Management
+- Clean up resources properly
+- Monitor memory usage
+- Use efficient data structures
+- Avoid memory leaks
+- Profile memory usage
+
+## Error Handling
+- Handle all exceptions gracefully
+- Provide meaningful error messages
+- Log errors appropriately
+- Include error recovery
+- Test error scenarios
+
+## Data Management
+- Validate data integrity
+- Use transactions when needed
+- Backup data regularly
+- Clean up old data
+- Monitor data growth

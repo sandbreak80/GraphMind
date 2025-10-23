@@ -80,27 +80,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
         {/* Content */}
         <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-          {/* API Configuration */}
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              API Configuration
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  API URL
-                </label>
-                <input
-                  type="url"
-                  value={localSettings.apiUrl}
-                  onChange={(e) => setLocalSettings({ ...localSettings, apiUrl: e.target.value })}
-                  className="input w-full"
-                  placeholder="http://localhost:8001"
-                />
-              </div>
-            </div>
-          </div>
-
           {/* Model Selection */}
           <div>
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
