@@ -191,7 +191,23 @@ export const useStore = create<AppState>()(
               if (message.role === 'user' && 
                   newMessages.filter(m => m.role === 'user').length === 1 && 
                   (chat.title === 'New Chat' || chat.title === 'Trading Strategy Chat')) {
-                updatedChat.title = generateChatTitle(message.content)
+                // Generate title asynchronously
+                generateChatTitle(message.content).then(title => {
+                  // Update the chat title after generation
+                  set(state => ({
+                    chats: state.chats.map(c => 
+                      c.id === chat.id ? { ...c, title } : c
+                    )
+                  }))
+                }).catch(() => {
+                  // Fallback to simple title if LLM fails
+                  const simpleTitle = message.content.split(' ').slice(0, 4).join(' ')
+                  set(state => ({
+                    chats: state.chats.map(c => 
+                      c.id === chat.id ? { ...c, title: simpleTitle } : c
+                    )
+                  }))
+                })
               }
               
               return updatedChat
@@ -246,8 +262,27 @@ export const useStore = create<AppState>()(
       },
       
       createChatWithAutoName: (firstMessage: string) => {
-        const title = generateChatTitle(firstMessage)
-        return get().createChat(title)
+        // Create chat with temporary title, will be updated asynchronously
+        const chatId = get().createChat('New Chat')
+        
+        // Generate title asynchronously and update
+        generateChatTitle(firstMessage).then(title => {
+          set(state => ({
+            chats: state.chats.map(chat => 
+              chat.id === chatId ? { ...chat, title } : chat
+            )
+          }))
+        }).catch(() => {
+          // Fallback to simple title if LLM fails
+          const simpleTitle = firstMessage.split(' ').slice(0, 4).join(' ')
+          set(state => ({
+            chats: state.chats.map(chat => 
+              chat.id === chatId ? { ...chat, title: simpleTitle } : chat
+            )
+          }))
+        })
+        
+        return chatId
       },
       
       deleteChat: (chatId) => {

@@ -495,6 +495,51 @@ async def test_research_models(request: AskRequest, current_user: dict = get_cur
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/generate-chat-title")
+async def generate_chat_title(request: dict, current_user: dict = get_current_user):
+    """Generate a meaningful chat title using LLM."""
+    try:
+        message = request.get("message", "")
+        if not message:
+            return {"title": "New Chat"}
+        
+        # Use llama3.2 for title generation
+        from app.ollama_client import OllamaClient
+        ollama = OllamaClient(default_model="llama3.2:latest")
+        
+        prompt = f"""Generate a concise, descriptive title for a chat conversation that starts with this message:
+
+"{message}"
+
+Requirements:
+- Keep it under 40 characters
+- Be specific and meaningful
+- Focus on the main topic or question
+- Use title case
+- No quotes or special characters
+
+Title:"""
+
+        title = ollama.generate(
+            prompt=prompt,
+            model="llama3.2:latest",
+            temperature=0.3,
+            max_tokens=50,
+            timeout=30
+        )
+        
+        # Clean up the title
+        title = title.strip().replace('"', '').replace("'", '')
+        if len(title) > 40:
+            title = title[:37] + "..."
+        
+        return {"title": title or "New Chat"}
+        
+    except Exception as e:
+        logger.error(f"Chat title generation failed: {e}")
+        return {"title": "New Chat"}
+
+
 @app.post("/ask-obsidian", response_model=AskResponse)
 async def ask_obsidian_question(request: AskRequest, current_user: dict = get_current_user):
     """Ask a question with enhanced personal knowledge from Obsidian notes."""
