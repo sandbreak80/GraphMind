@@ -49,7 +49,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             {isUser ? (
               <div className="whitespace-pre-wrap">{message.content}</div>
             ) : (
-              <div className="prose prose-sm max-w-none dark:prose-invert prose-table:table-auto prose-th:border prose-th:border-gray-300 prose-th:px-4 prose-th:py-2 prose-th:bg-gray-50 prose-th:font-semibold prose-td:border prose-td:border-gray-300 prose-td:px-4 prose-td:py-2 prose-pre:bg-gray-900 prose-pre:text-gray-100">
+              <div className="prose prose-sm max-w-none dark:prose-invert prose-table:table-auto prose-th:border prose-th:border-gray-300 prose-th:px-4 prose-th:py-2 prose-th:bg-gray-50 prose-th:font-semibold prose-td:border prose-td:border-gray-300 prose-td:px-4 prose-td:py-2 prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-li:text-gray-900 dark:prose-li:text-gray-100 prose-p:text-gray-900 dark:prose-p:text-gray-100 prose-strong:text-gray-900 dark:prose-strong:text-gray-100 prose-em:text-gray-900 dark:prose-em:text-gray-100">
                 {message.isProcessing && (
                   <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600"></div>

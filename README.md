@@ -26,6 +26,36 @@ A comprehensive Retrieval-Augmented Generation (RAG) system designed for trading
 - **Real-time Web Search**: SearXNG integration for current information
 - **Personal Knowledge**: Obsidian MCP client for personal notes
 
+## 📋 Requirements
+
+### Quick Start
+- **Docker**: 20.10+ with Docker Compose 2.0+
+- **GPU**: NVIDIA with 24GB+ VRAM (recommended)
+- **RAM**: 32GB+ system memory
+- **Storage**: 100GB+ free space
+
+### Detailed Requirements
+- **[Python Dependencies](REQUIREMENTS_DOCUMENTATION.md)** - Complete list of 55+ Python libraries
+- **[Docker Requirements](docker-requirements.md)** - Container configuration and system dependencies
+- **[Ollama Requirements](ollama-requirements.md)** - LLM models and GPU specifications
+
+### Installation
+```bash
+# Clone repository
+git clone <repository-url>
+cd EminiPlayer
+
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Install Ollama models
+ollama pull llama3.1:latest
+ollama pull qwen2.5-coder:14b
+
+# Start with Docker Compose
+docker compose up -d
+```
+
 ## 📁 Project Structure
 
 ```

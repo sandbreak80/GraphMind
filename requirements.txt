@@ -1,54 +1,50 @@
-# Core API
-fastapi>=0.104
-uvicorn[standard]>=0.24
-pydantic>=2.5
-python-multipart
+# =============================================================================
+# TradingAI Research Platform - Python Dependencies
+# =============================================================================
+# Core Web Framework & API
+fastapi>=0.104                    # Modern, fast web framework for building APIs
+uvicorn[standard]>=0.24           # ASGI server for FastAPI
+pydantic>=2.5                     # Data validation and settings management
+python-multipart                  # Handle multipart form data
 
-# Authentication
-python-jose[cryptography]>=3.3.0
-python-multipart
+# Authentication & Security
+python-jose[cryptography]>=3.3.0  # JWT token handling and encryption
+python-magic                      # File type detection
 
-# PDF Processing
-docling>=1.8
-ocrmypdf>=15.4
-PyMuPDF>=1.23
-pdf2image
+# Document Processing
+docling>=1.8                      # Advanced PDF processing and parsing
+ocrmypdf>=15.4                    # OCR for PDF files
+PyMuPDF>=1.23                     # PDF manipulation and text extraction
+pdf2image                         # Convert PDF pages to images
+openpyxl                          # Excel file processing
+python-docx                       # Word document processing
+pandas>=2.1.4                     # Data manipulation and analysis
 
-# Office Documents (Excel, Word)
-openpyxl
-python-docx
-pandas>=2.1.4
+# Video & Media Processing
+faster-whisper>=0.10              # Fast Whisper speech-to-text
+opencv-python                     # Computer vision and video processing
+ffmpeg-python                     # Video/audio processing wrapper
+pytesseract                       # OCR for video frames
+pillow                            # Image processing
 
-# Video Processing
-faster-whisper>=0.10
-opencv-python
-ffmpeg-python
-pytesseract  # OCR for video frames
+# AI/ML & Vector Processing
+chromadb>=0.4                     # Vector database for embeddings
+sentence-transformers             # Text embeddings and similarity
+torch                             # PyTorch deep learning framework
+transformers                      # Hugging Face transformers library
+numpy>=1.26.4,<2.0               # Numerical computing
+rank-bm25                         # BM25 text ranking algorithm
 
-# Vector Store & Embeddings
-chromadb>=0.4
-sentence-transformers
-
-# Visual Understanding (for video frames)
-pillow
-
-# Retrieval
-rank-bm25
-
-# LLM Integration
-requests>=2.32.3
-httpx
-aiohttp>=3.8.0
-
-# ML/NLP
-torch
-transformers
-numpy>=1.26.4,<2.0
-
-# Web Parsing & Crawling
-crawl4ai>=0.7.4
+# Web & Network
+requests>=2.32.3                  # HTTP client library
+httpx                             # Modern async HTTP client
+aiohttp>=3.8.0                    # Async HTTP client/server
+crawl4ai>=0.7.4                  # Web crawling and content extraction
 
 # Utilities
-pyyaml
-python-magic
-tqdm
+pyyaml                            # YAML file processing
+tqdm                              # Progress bars
+
+# Development & Testing (optional)
+pytest                            # Testing framework
+pytest-cov                        # Coverage plugin for pytest
