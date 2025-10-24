@@ -1,4 +1,5 @@
 # EminiPlayer QA Automation Rules
+#LAST CONVERSATION - cursor-agent --resume=422da8fd-5c19-43fd-8cdc-41ad2736a26c
 
 ## Test Requirements
 - All new features must include unit tests
