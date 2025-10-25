@@ -6,6 +6,7 @@ import subprocess
 from datetime import datetime
 from collections import Counter
 import json
+import os
 import chromadb
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
@@ -23,12 +24,14 @@ class PDFIngestor:
     
     def __init__(self):
         """Initialize ingestor with Chroma, embedding model, and processors."""
-        self.chroma_client = chromadb.PersistentClient(
-            path=str(CHROMA_DIR),
-            settings=Settings(anonymized_telemetry=False)
+        # Use HttpClient to connect to the ChromaDB service (not PersistentClient)
+        chroma_url = os.getenv("CHROMA_URL", "http://chromadb:8000")
+        self.chroma_client = chromadb.HttpClient(
+            host=chroma_url.split("://")[1].split(":")[0],
+            port=int(chroma_url.split(":")[-1])
         )
         self.collection = self.chroma_client.get_or_create_collection(
-            name=COLLECTION_NAME,
+            name="documents",  # Use standard collection name
             metadata={"hnsw:space": "cosine"}
         )
         self.embedding_model = SentenceTransformer(EMBEDDING_MODEL)
