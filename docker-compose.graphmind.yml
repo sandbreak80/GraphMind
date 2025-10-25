@@ -22,7 +22,7 @@ services:
       - MCP_ENABLED=true
       - MCP_DOCKER_SOCKET=/var/run/docker.sock
     volumes:
-      - ./documents:/app/documents
+      - ./documents:/workspace/documents
       - ./memory:/app/memory
       - ./config:/app/config
       - /var/run/docker.sock:/var/run/docker.sock:ro
