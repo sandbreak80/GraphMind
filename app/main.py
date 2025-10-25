@@ -1845,11 +1845,12 @@ async def save_settings(request: dict, current_user: dict = Depends(get_current_
             if not request.get("obsidian_api_url"):
                 raise HTTPException(status_code=400, detail="Obsidian API URL is required when enabled")
         
-        # Docker networking: Convert localhost/127.0.0.1 to host.docker.internal
+        # Docker networking: Convert localhost/127.0.0.1/0.0.0.0 to host.docker.internal
         if request.get("obsidian_api_url"):
             api_url = request["obsidian_api_url"]
             api_url = api_url.replace("localhost", "host.docker.internal")
             api_url = api_url.replace("127.0.0.1", "host.docker.internal")
+            api_url = api_url.replace("0.0.0.0", "host.docker.internal")
             request["obsidian_api_url"] = api_url
             logger.info(f"Converted Obsidian API URL to: {api_url}")
         
@@ -1880,9 +1881,10 @@ async def test_obsidian_connection(request: dict, current_user: dict = Depends(g
     if not api_url:
         raise HTTPException(status_code=400, detail="API URL is required")
     
-    # Docker networking: Convert localhost/127.0.0.1 to host.docker.internal
+    # Docker networking: Convert localhost/127.0.0.1/0.0.0.0 to host.docker.internal
     api_url = api_url.replace("localhost", "host.docker.internal")
     api_url = api_url.replace("127.0.0.1", "host.docker.internal")
+    api_url = api_url.replace("0.0.0.0", "host.docker.internal")
     
     try:
         # Test API connection
