@@ -11,6 +11,9 @@ services:
       dockerfile: config/Dockerfile
     image: graphmind-rag:latest
     container_name: graphmind-rag
+    # Allow container to access host network for Obsidian API
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # No external ports - internal only
     environment:
       - FRONTEND_DOMAIN=${FRONTEND_DOMAIN:-emini.riffyx.com}
