@@ -48,6 +48,7 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=http://graphmind-rag:8000
       - NEXT_PUBLIC_FRONTEND_DOMAIN=${FRONTEND_DOMAIN:-emini.riffyx.com}
+      - BACKEND_URL=http://graphmind-rag:8000
     depends_on:
       - graphmind-rag
     networks:
