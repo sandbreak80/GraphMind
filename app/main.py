@@ -224,33 +224,43 @@ async def upload_document(file: UploadFile = File(...), current_user: dict = Dep
         from pathlib import Path
         import shutil
         
-        # Validate file size (400MB max)
+        # Security: Define allowed file types (only what we can process)
+        ALLOWED_EXTENSIONS = {'.pdf', '.mp4', '.webm', '.avi', '.mov', '.xlsx', '.xls', '.docx', '.doc', '.txt'}
+        
+        # Security: Validate file size (400MB max) - check before streaming
         MAX_SIZE = 400 * 1024 * 1024  # 400MB
+        
+        # Security: Validate file extension
+        file_ext = Path(file.filename).suffix.lower()
+        if file_ext not in ALLOWED_EXTENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type: {file_ext}. Allowed types: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
+            )
         
         # Save to documents directory
         documents_dir = Path("/workspace/documents")
         documents_dir.mkdir(exist_ok=True, parents=True)
         
-        # Keep original filename (no timestamp prefix for better organization)
+        # Security: Check for duplicate files - reject if exists
         file_path = documents_dir / file.filename
-        
-        # If file exists, add a number suffix
         if file_path.exists():
-            base = file_path.stem
-            ext = file_path.suffix
-            counter = 1
-            while file_path.exists():
-                file_path = documents_dir / f"{base}_{counter}{ext}"
-                counter += 1
+            raise HTTPException(
+                status_code=409,
+                detail=f"File '{file.filename}' already exists. Please rename the file or delete the existing one first."
+            )
         
-        # Save file using streaming for large files
+        # Security: Save file using streaming with size enforcement
         total_size = 0
         with open(file_path, 'wb') as f:
             while chunk := await file.read(8192):  # 8KB chunks
                 total_size += len(chunk)
                 if total_size > MAX_SIZE:
-                    file_path.unlink()  # Delete partial file
-                    raise HTTPException(status_code=413, detail=f"File too large. Maximum size is 400MB")
+                    file_path.unlink()  # Delete partial file immediately
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"File too large ({total_size / 1024 / 1024:.2f} MB). Maximum size is 400MB"
+                    )
                 f.write(chunk)
         
         logger.info(f"Uploaded document: {file_path.name} ({total_size / 1024 / 1024:.2f} MB)")
