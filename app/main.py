@@ -1442,12 +1442,33 @@ async def generate_with_ollama(request: dict):
 
 @app.get("/documents")
 async def list_documents(current_user: dict = Depends(get_current_user)):
-    """List all ingested documents in the ChromaDB collection."""
+    """List all uploaded and ingested documents."""
     try:
         import chromadb
         import os
         from pathlib import Path
+        from datetime import datetime
         
+        documents_dir = Path("/workspace/documents")
+        documents_dir.mkdir(exist_ok=True, parents=True)
+        
+        # Get files from filesystem
+        files_list = []
+        if documents_dir.exists():
+            for file_path in documents_dir.iterdir():
+                if file_path.is_file():
+                    stat = file_path.stat()
+                    files_list.append({
+                        "doc_id": file_path.name,
+                        "filename": file_path.name,
+                        "chunks": 0,  # Not ingested yet
+                        "type": file_path.suffix[1:] if file_path.suffix else "unknown",
+                        "size": stat.st_size,
+                        "uploaded_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                        "ingested": False
+                    })
+        
+        # Get ingested documents from ChromaDB
         chroma_url = os.getenv("CHROMA_URL", "http://chromadb:8000")
         chroma_client = chromadb.HttpClient(
             host=chroma_url.split("://")[1].split(":")[0],
@@ -1460,25 +1481,26 @@ async def list_documents(current_user: dict = Depends(get_current_user)):
             # Get all documents
             results = collection.get(include=["metadatas"])
             
-            # Group by document ID
-            docs_dict = {}
+            # Group by filename and mark as ingested
+            ingested_files = {}
             for i, metadata in enumerate(results["metadatas"]):
-                doc_id = metadata.get("doc_id", "unknown")
                 filename = metadata.get("filename", "unknown")
                 
-                if doc_id not in docs_dict:
-                    docs_dict[doc_id] = {
-                        "doc_id": doc_id,
-                        "filename": filename,
+                if filename not in ingested_files:
+                    ingested_files[filename] = {
                         "chunks": 0,
                         "type": metadata.get("doc_type", "unknown"),
-                        "size": 0,  # We don't store size, placeholder
-                        "uploaded_at": metadata.get("ingestion_time", "")
+                        "ingestion_time": metadata.get("ingestion_time", "")
                     }
-                docs_dict[doc_id]["chunks"] += 1
+                ingested_files[filename]["chunks"] += 1
             
-            documents = list(docs_dict.values())
-            return JSONResponse(content={"documents": documents})
+            # Mark uploaded files as ingested if they're in ChromaDB
+            for doc in files_list:
+                if doc["filename"] in ingested_files:
+                    doc["ingested"] = True
+                    doc["chunks"] = ingested_files[doc["filename"]]["chunks"]
+            
+            return JSONResponse(content={"documents": files_list})
             
         except Exception as e:
             if "does not exist" in str(e):

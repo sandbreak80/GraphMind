@@ -171,40 +171,128 @@ export function EnhancedChatInterface() {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto scrollbar-enhanced p-4 space-y-4">
           {messages.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center max-w-md mx-auto">
-                <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl">🤖</span>
+            <div className="flex-1 flex items-center justify-center p-6">
+              <div className="text-center max-w-4xl mx-auto">
+                {/* Header */}
+                <div className="mb-8">
+                  <div className="w-20 h-20 bg-gradient-to-br from-primary-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                    <span className="text-4xl">🧠</span>
+                  </div>
+                  <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">
+                    Welcome to GraphMind
+                  </h1>
+                  <p className="text-base text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+                    Advanced RAG framework with four powerful research modes
+                  </p>
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                  Welcome to GraphMind
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                  Your open-source RAG framework for domain-agnostic research. 
-                  I can help you with document analysis, web search, knowledge graphs, and comprehensive research across any domain.
-                </p>
-                <div className="grid grid-cols-1 gap-3">
+
+                {/* Mode Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                  {/* RAG Documents Mode */}
                   <button
-                    onClick={() => setInput("What are the key concepts in this domain?")}
-                    className="p-3 text-left bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    onClick={() => {
+                      onModeChange?.('rag-only')
+                      setInput("What insights can you extract from the uploaded documents?")
+                    }}
+                    className="group p-5 text-left bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl hover:shadow-lg transition-all border-2 border-blue-200 dark:border-blue-700 hover:border-blue-400 dark:hover:border-blue-500"
                   >
-                    <div className="font-medium text-sm text-gray-900 dark:text-white">Domain Research</div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">Explore key concepts in any field</div>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                        <span className="text-xl">📚</span>
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-bold text-base text-gray-900 dark:text-white mb-1">RAG Documents</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                          Query your uploaded PDFs, videos, and documents with AI-powered retrieval
+                        </div>
+                        <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                          → Try: "Summarize the key points from my documents"
+                        </div>
+                      </div>
+                    </div>
                   </button>
+
+                  {/* Web Search Mode */}
                   <button
-                    onClick={() => setInput("Summarize the latest research findings")}
-                    className="p-3 text-left bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    onClick={() => {
+                      onModeChange?.('web-only')
+                      setInput("What are the latest developments in AI research?")
+                    }}
+                    className="group p-5 text-left bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl hover:shadow-lg transition-all border-2 border-green-200 dark:border-green-700 hover:border-green-400 dark:hover:border-green-500"
                   >
-                    <div className="font-medium text-sm text-gray-900 dark:text-white">Research Summary</div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">Get comprehensive research insights</div>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                        <span className="text-xl">🌐</span>
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-bold text-base text-gray-900 dark:text-white mb-1">Web Search</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                          Get real-time information from the web with privacy-focused SearXNG
+                        </div>
+                        <div className="text-xs text-green-600 dark:text-green-400 font-medium">
+                          → Try: "What's the latest news about quantum computing?"
+                        </div>
+                      </div>
+                    </div>
                   </button>
+
+                  {/* Obsidian Mode */}
                   <button
-                    onClick={() => setInput("How can I analyze this data effectively?")}
-                    className="p-3 text-left bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    onClick={() => {
+                      onModeChange?.('obsidian-only')
+                      setInput("What connections exist in my personal knowledge base?")
+                    }}
+                    className="group p-5 text-left bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl hover:shadow-lg transition-all border-2 border-purple-200 dark:border-purple-700 hover:border-purple-400 dark:hover:border-purple-500"
                   >
-                    <div className="font-medium text-sm text-gray-900 dark:text-white">Data Analysis</div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">Learn effective analysis techniques</div>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                        <span className="text-xl">🗂️</span>
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-bold text-base text-gray-900 dark:text-white mb-1">Obsidian Notes</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                          Connect to your Obsidian vault for personalized knowledge retrieval
+                        </div>
+                        <div className="text-xs text-purple-600 dark:text-purple-400 font-medium">
+                          → Try: "What have I written about project management?"
+                        </div>
+                      </div>
+                    </div>
                   </button>
+
+                  {/* Comprehensive Research Mode */}
+                  <button
+                    onClick={() => {
+                      onModeChange?.('research')
+                      setInput("Conduct comprehensive research on machine learning applications")
+                    }}
+                    className="group p-5 text-left bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-xl hover:shadow-lg transition-all border-2 border-orange-200 dark:border-orange-700 hover:border-orange-400 dark:hover:border-orange-500"
+                  >
+                    <div className="flex items-start space-x-3">
+                      <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                        <span className="text-xl">🔬</span>
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-bold text-base text-gray-900 dark:text-white mb-1">Comprehensive Research</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                          Combine all sources: documents, web, and notes for deep analysis
+                        </div>
+                        <div className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                          → Try: "Analyze the current state of renewable energy"
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+
+                {/* Quick Tips */}
+                <div className="text-center">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                    💡 <span className="font-medium">Pro Tip:</span> Switch modes anytime using the controls above
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Upload documents • Configure Obsidian • Adjust settings for optimal results
+                  </p>
                 </div>
               </div>
             </div>

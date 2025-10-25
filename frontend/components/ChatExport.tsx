@@ -14,7 +14,8 @@ export function ChatExport({ chatId, className = '' }: ChatExportProps) {
     setIsExporting(true)
     try {
       const markdown = await exportChat(chatId)
-      downloadMarkdown(markdown, `chat-${chatId}.md`)
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+      downloadMarkdown(markdown, `graphmind-conversation-${timestamp}.md`)
     } catch (error) {
       console.error('Export failed:', error)
       alert('Export failed. Please try again.')
@@ -46,7 +47,8 @@ export function ExportAll({ className = '' }: ExportAllProps) {
     setIsExporting(true)
     try {
       const markdown = await exportAllChats()
-      downloadMarkdown(markdown, `tradingai-export-${new Date().toISOString().split('T')[0]}.md`)
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+      downloadMarkdown(markdown, `graphmind-full-export-${timestamp}.md`)
     } catch (error) {
       console.error('Export failed:', error)
       alert('Export failed. Please try again.')

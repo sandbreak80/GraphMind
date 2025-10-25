@@ -20,13 +20,14 @@ class UserMemory:
         self.storage_dir = Path(storage_dir)
         self.storage_dir.mkdir(exist_ok=True)
         
-        # Memory categories
+        # Memory categories - domain-agnostic personal information
         self.categories = {
-            'preferences': 'user_preferences.json',
-            'chat_history': 'chat_history.json', 
-            'strategies': 'trading_strategies.json',
-            'insights': 'key_insights.json',
-            'context': 'conversation_context.json'
+            'preferences': 'user_preferences.json',       # User preferences and settings
+            'profile': 'user_profile.json',               # Name, location, timezone, contact details
+            'interests': 'user_interests.json',           # Hobbies, likes, dislikes, topics of interest
+            'personal': 'personal_info.json',             # Family, address, personal details
+            'insights': 'user_insights.json',             # Key learnings and insights about the user
+            'context': 'conversation_context.json'        # Chat context and history
         }
     
     def get_user_file(self, user_id: str, category: str) -> Path:

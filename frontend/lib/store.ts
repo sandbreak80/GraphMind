@@ -519,9 +519,10 @@ export const useStore = create<AppState>()(
       
       exportAllChats: async () => {
         const { chats } = get()
-        let markdown = `# TradingAI Research Platform Chat Export\n\n`
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0]
+        let markdown = `# GraphMind Chat Export\n\n`
         markdown += `**Export Date:** ${new Date().toLocaleString()}\n`
-        markdown += `**Total Chats:** ${chats.length}\n\n`
+        markdown += `**Total Conversations:** ${chats.length}\n\n`
         markdown += `---\n\n`
         
         for (const chat of chats) {
