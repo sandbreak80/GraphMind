@@ -2,14 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://graphmind-rag:8000'
 
-// Disable body size limit for large file uploads (up to 400MB)
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-}
-
+// Next.js 14 App Router config
 export const maxDuration = 300 // 5 minutes for large uploads
+export const dynamic = 'force-dynamic' // Don't cache this route
 
 export async function POST(request: NextRequest) {
   try {
