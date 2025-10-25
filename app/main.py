@@ -278,26 +278,16 @@ async def ingest_documents(request: IngestRequest = None, current_user: dict = D
     """
     try:
         from pathlib import Path
-        import chromadb
-        from sentence_transformers import SentenceTransformer
-        from app.ingest import Ingestor
         import os
         
         force_reindex = request.force_reindex if request else False
         logger.info(f"Starting batch ingestion (force_reindex={force_reindex})")
         
-        # Initialize ingestor
-        chroma_url = os.getenv("CHROMA_URL", "http://chromadb:8000")
-        chroma_client = chromadb.HttpClient(
-            host=chroma_url.split("://")[1].split(":")[0],
-            port=int(chroma_url.split(":")[-1])
-        )
-        embedding_model = SentenceTransformer('BAAI/bge-m3')
-        ingestor = Ingestor(chroma_client, embedding_model)
-        
-        # Ingest from documents directory
+        # Use the existing global ingestor instance
         documents_dir = Path("/workspace/documents")
-        result = ingestor.ingest_documents(documents_dir, force_reindex=force_reindex)
+        
+        # The PDFIngestor.ingest_all() method already processes all files from /workspace/documents
+        result = ingestor.ingest_all(force_reindex=force_reindex)
         
         logger.info(f"Ingestion complete: {result['processed_files']} files, {result['total_chunks']} chunks")
         
