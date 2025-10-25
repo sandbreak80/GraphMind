@@ -157,7 +157,7 @@ echo "your-secret" | docker secret create ollama_key -
 export DOCKER_CONTENT_TRUST=1
 
 # Use specific image tags (not 'latest')
-docker pull eminiplayer:1.0.0
+docker pull graphmind:1.0.0
 ```
 
 ### Monitoring

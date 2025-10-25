@@ -49,16 +49,16 @@ function capitalizeWords(str: string): string {
 }
 
 export function extractKeywords(message: string): string[] {
-  const tradingTerms = [
-    'fade', 'setup', 'strategy', 'trading', 'entry', 'exit', 'stop', 'target',
-    'support', 'resistance', 'trend', 'breakout', 'pullback', 'continuation',
-    'macd', 'rsi', 'moving average', 'indicator', 'signal', 'pattern',
-    'scalp', 'swing', 'position', 'risk', 'reward', 'ratio', 'management',
-    'backtest', 'optimize', 'parameter', 'settings', 'configuration',
-    'market', 'price', 'volume', 'momentum', 'volatility', 'range',
-    'zone', 'level', 'key', 'critical', 'important', 'setup', 'rule'
+  const researchTerms = [
+    'research', 'analysis', 'study', 'investigation', 'exploration', 'examination',
+    'methodology', 'approach', 'framework', 'model', 'theory', 'concept',
+    'data', 'findings', 'results', 'conclusion', 'hypothesis', 'experiment',
+    'domain', 'field', 'subject', 'topic', 'area', 'discipline',
+    'knowledge', 'information', 'insight', 'understanding', 'comprehension',
+    'document', 'source', 'reference', 'citation', 'evidence', 'proof',
+    'key', 'important', 'critical', 'significant', 'relevant', 'essential'
   ]
 
   const messageLower = message.toLowerCase()
-  return tradingTerms.filter(term => messageLower.includes(term))
+  return researchTerms.filter(term => messageLower.includes(term))
 }

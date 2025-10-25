@@ -31,7 +31,7 @@ COLLECTION_NAME = os.getenv("COLLECTION_NAME", "tradingai_docs")
 # Ollama
 if Path("/workspace").exists():
     # Running in container - use host.docker.internal
-    OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+    OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 else:
     # Running on host - use localhost
     OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
@@ -77,7 +77,7 @@ CHUNK_ENRICHMENT_MODEL = os.getenv("CHUNK_ENRICHMENT_MODEL", "llama3.1:latest") 
 
 # High-Performance LLM Configuration (100GB RAM + 24 CPU cores)
 PRODUCTION_LLM_MODEL = os.getenv("PRODUCTION_LLM_MODEL", "llama3.1:latest")  # Best for RAG and strategy evaluation
-RESEARCH_LLM_MODEL = os.getenv("RESEARCH_LLM_MODEL", "gpt-oss:20b")  # Best for research and analysis
+RESEARCH_LLM_MODEL = os.getenv("RESEARCH_LLM_MODEL", "qwen2.5:14b")  # Best for research and analysis
 MAX_TOKENS = int(os.getenv("MAX_TOKENS", "8000"))  # Massive responses with 100GB RAM
 TEMPERATURE = float(os.getenv("TEMPERATURE", "0.1"))  # Lower for consistent trading rules
 RESEARCH_TEMPERATURE = float(os.getenv("RESEARCH_TEMPERATURE", "0.3"))  # Higher for creative research

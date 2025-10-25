@@ -3,7 +3,7 @@ import logging
 import time
 from contextlib import asynccontextmanager
 from typing import Optional
-from fastapi import FastAPI, HTTPException, Form, Depends
+from fastapi import FastAPI, HTTPException, Form, Depends, File, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -82,7 +82,7 @@ async def lifespan(app: FastAPI):
     
     # Initialize SearXNG integration (primary web search)
     import os
-    searxng_url = os.getenv("SEARXNG_URL", "http://192.168.50.236:8888")
+    searxng_url = os.getenv("SEARXNG_URL", "http://searxng:8080")
     searxng_client = create_searxng_client(searxng_url)
     if searxng_client:
         searxng_rag = EnhancedRAGWithSearXNG(retriever, searxng_client)
@@ -179,6 +179,74 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user)):
         "is_admin": current_user["is_admin"],
         "created_at": current_user["created_at"]
     }
+
+@app.post("/auth/change-password")
+async def change_password(
+    request: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Change user password."""
+    current_password = request.get("current_password")
+    new_password = request.get("new_password")
+    
+    if not current_password or not new_password:
+        raise HTTPException(
+            status_code=400,
+            detail="Current password and new password are required"
+        )
+    
+    if len(new_password) < 6:
+        raise HTTPException(
+            status_code=400,
+            detail="New password must be at least 6 characters long"
+        )
+    
+    success = auth_manager.change_password(
+        current_user["username"],
+        current_password,
+        new_password
+    )
+    
+    if not success:
+        raise HTTPException(
+            status_code=400,
+            detail="Current password is incorrect"
+        )
+    
+    return {
+        "success": True,
+        "message": "Password changed successfully"
+    }
+
+@app.post("/upload")
+async def upload_document(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    """Upload a document to the documents directory for ingestion."""
+    try:
+        from pathlib import Path
+        
+        # Save to documents directory
+        documents_dir = Path("/workspace/documents")
+        documents_dir.mkdir(exist_ok=True, parents=True)
+        
+        # Generate unique filename
+        filename = f"{int(time.time())}_{file.filename}"
+        file_path = documents_dir / filename
+        
+        # Save file
+        content = await file.read()
+        with open(file_path, 'wb') as f:
+            f.write(content)
+        
+        logger.info(f"Uploaded document: {filename} to {file_path}")
+        return {
+            "success": True,
+            "message": f"Document uploaded successfully: {filename}",
+            "filename": filename,
+            "path": str(file_path)
+        }
+    except Exception as e:
+        logger.error(f"Upload error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/ingest", response_model=IngestResponse)
 async def ingest_pdfs(request: IngestRequest, current_user: dict = Depends(get_current_user)):
@@ -1285,7 +1353,7 @@ async def get_ollama_models():
         import requests
         import os
         
-        ollama_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+        ollama_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
         response = requests.get(f"{ollama_url}/api/tags", timeout=10)
         
         if response.status_code == 200:
@@ -1355,7 +1423,7 @@ async def generate_with_ollama(request: dict):
         import requests
         import os
         
-        ollama_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+        ollama_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
         response = requests.post(
             f"{ollama_url}/api/generate",
             json=request,
@@ -1370,6 +1438,223 @@ async def generate_with_ollama(request: dict):
     except Exception as e:
         logger.error(f"Ollama generate error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/documents")
+async def list_documents(current_user: dict = Depends(get_current_user)):
+    """List all ingested documents in the ChromaDB collection."""
+    try:
+        import chromadb
+        import os
+        from pathlib import Path
+        
+        chroma_url = os.getenv("CHROMA_URL", "http://chromadb:8000")
+        chroma_client = chromadb.HttpClient(
+            host=chroma_url.split("://")[1].split(":")[0],
+            port=int(chroma_url.split(":")[-1])
+        )
+        
+        try:
+            collection = chroma_client.get_collection("documents")
+            
+            # Get all documents
+            results = collection.get(include=["metadatas"])
+            
+            # Group by document ID
+            docs_dict = {}
+            for i, metadata in enumerate(results["metadatas"]):
+                doc_id = metadata.get("doc_id", "unknown")
+                filename = metadata.get("filename", "unknown")
+                
+                if doc_id not in docs_dict:
+                    docs_dict[doc_id] = {
+                        "doc_id": doc_id,
+                        "filename": filename,
+                        "chunks": 0,
+                        "type": metadata.get("doc_type", "unknown"),
+                        "size": 0,  # We don't store size, placeholder
+                        "uploaded_at": metadata.get("ingestion_time", "")
+                    }
+                docs_dict[doc_id]["chunks"] += 1
+            
+            documents = list(docs_dict.values())
+            return JSONResponse(content={"documents": documents})
+            
+        except Exception as e:
+            if "does not exist" in str(e):
+                return JSONResponse(content={"documents": []})
+            raise
+            
+    except Exception as e:
+        logger.error(f"Failed to list documents: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to list documents: {str(e)}")
+
+
+@app.delete("/documents/{doc_id}")
+async def delete_document(doc_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a document and all its chunks from ChromaDB."""
+    try:
+        import chromadb
+        import os
+        
+        chroma_url = os.getenv("CHROMA_URL", "http://chromadb:8000")
+        chroma_client = chromadb.HttpClient(
+            host=chroma_url.split("://")[1].split(":")[0],
+            port=int(chroma_url.split(":")[-1])
+        )
+        
+        try:
+            collection = chroma_client.get_collection("documents")
+            
+            # Get all chunk IDs for this document
+            results = collection.get(
+                where={"doc_id": doc_id},
+                include=["metadatas"]
+            )
+            
+            if not results["ids"]:
+                raise HTTPException(status_code=404, detail="Document not found")
+            
+            # Delete all chunks
+            collection.delete(ids=results["ids"])
+            
+            logger.info(f"Deleted document {doc_id} ({len(results['ids'])} chunks)")
+            return JSONResponse(content={
+                "success": True,
+                "message": f"Deleted {len(results['ids'])} chunks",
+                "chunks_deleted": len(results["ids"])
+            })
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            if "does not exist" in str(e):
+                raise HTTPException(status_code=404, detail="Collection does not exist")
+            raise
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete document: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
+
+
+@app.get("/settings")
+async def get_settings(current_user: dict = Depends(get_current_user)):
+    """Get user settings including Obsidian configuration."""
+    import json
+    from pathlib import Path
+    
+    user_id = current_user["username"]
+    settings_dir = Path("data/user_settings")
+    settings_dir.mkdir(parents=True, exist_ok=True)
+    settings_file = settings_dir / f"{user_id}_settings.json"
+    
+    # Default settings
+    default_settings = {
+        "obsidian_vault_path": "",
+        "obsidian_api_url": "https://localhost:27124",
+        "obsidian_api_key": "",
+        "obsidian_enabled": False
+    }
+    
+    if settings_file.exists():
+        try:
+            with open(settings_file, 'r') as f:
+                user_settings = json.load(f)
+                return JSONResponse(content=user_settings)
+        except Exception as e:
+            logger.error(f"Failed to load user settings: {e}")
+            return JSONResponse(content=default_settings)
+    
+    return JSONResponse(content=default_settings)
+
+
+@app.post("/settings")
+async def save_settings(request: dict, current_user: dict = Depends(get_current_user)):
+    """Save user settings including Obsidian configuration."""
+    import json
+    from pathlib import Path
+    
+    user_id = current_user["username"]
+    settings_dir = Path("data/user_settings")
+    settings_dir.mkdir(parents=True, exist_ok=True)
+    settings_file = settings_dir / f"{user_id}_settings.json"
+    
+    try:
+        # Validate required fields if Obsidian is enabled
+        if request.get("obsidian_enabled", False):
+            if not request.get("obsidian_api_url"):
+                raise HTTPException(status_code=400, detail="Obsidian API URL is required when enabled")
+        
+        # Save settings
+        with open(settings_file, 'w') as f:
+            json.dump(request, f, indent=2)
+        
+        logger.info(f"Saved settings for user {user_id}")
+        return JSONResponse(content={"success": True, "message": "Settings saved successfully"})
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to save user settings: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to save settings: {str(e)}")
+
+
+@app.post("/settings/test-obsidian")
+async def test_obsidian_connection(request: dict, current_user: dict = Depends(get_current_user)):
+    """Test Obsidian connection with provided settings."""
+    import aiohttp
+    from pathlib import Path
+    
+    vault_path = request.get("vault_path")
+    api_url = request.get("api_url")
+    api_key = request.get("api_key")
+    
+    if not api_url:
+        raise HTTPException(status_code=400, detail="API URL is required")
+    
+    try:
+        # Test API connection
+        headers = {}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{api_url}/vault/", headers=headers, ssl=False, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    note_count = len(data.get("files", []))
+                    return JSONResponse(content={
+                        "success": True,
+                        "message": f"Connected successfully to Obsidian vault",
+                        "note_count": note_count
+                    })
+                else:
+                    return JSONResponse(
+                        content={
+                            "success": False,
+                            "message": f"Connection failed: HTTP {response.status}"
+                        },
+                        status_code=400
+                    )
+    except aiohttp.ClientConnectorError:
+        return JSONResponse(
+            content={
+                "success": False,
+                "message": "Cannot connect to Obsidian API. Make sure the Local REST API plugin is running."
+            },
+            status_code=400
+        )
+    except Exception as e:
+        logger.error(f"Obsidian connection test failed: {e}")
+        return JSONResponse(
+            content={
+                "success": False,
+                "message": f"Connection test failed: {str(e)}"
+            },
+            status_code=400
+        )
 
 
 @app.get("/health")

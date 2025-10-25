@@ -8,7 +8,10 @@ import {
   XMarkIcon,
   CpuChipIcon,
   CogIcon,
-  LinkIcon
+  LinkIcon,
+  DocumentTextIcon,
+  ChatBubbleBottomCenterTextIcon,
+  LockClosedIcon
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
 import { ExportAll } from './ChatExport'
@@ -77,7 +80,8 @@ export function Sidebar() {
           <button
             onClick={() => {
               const { createChat } = useStore.getState()
-              createChat('New Chat')
+              const newChatId = createChat('New Chat')
+              router.push(`/chat/${newChatId}`)
             }}
             className="btn btn-primary w-full flex items-center justify-center space-x-2"
           >
@@ -111,6 +115,54 @@ export function Sidebar() {
           >
             <CpuChipIcon className="h-4 w-4" />
             <span>Memory</span>
+          </Link>
+          
+          <Link
+            href="/documents"
+            className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              pathname === '/documents'
+                ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+          >
+            <DocumentTextIcon className="h-4 w-4" />
+            <span>Documents</span>
+          </Link>
+          
+          <Link
+            href="/prompts"
+            className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              pathname === '/prompts'
+                ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+          >
+            <ChatBubbleBottomCenterTextIcon className="h-4 w-4" />
+            <span>Prompts</span>
+          </Link>
+          
+          <Link
+            href="/settings"
+            className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              pathname === '/settings'
+                ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+          >
+            <CogIcon className="h-4 w-4" />
+            <span>Settings</span>
+          </Link>
+          
+          <Link
+            href="/change-password"
+            className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              pathname === '/change-password'
+                ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+          >
+            <LockClosedIcon className="h-4 w-4" />
+            <span>Change Password</span>
           </Link>
         </div>
       </div>
@@ -190,7 +242,7 @@ export function Sidebar() {
       {/* Footer */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700">
         <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
-          TradingAI Research Platform v2.0
+          GraphMind v3.0 - Open RAG Framework
         </div>
       </div>
 

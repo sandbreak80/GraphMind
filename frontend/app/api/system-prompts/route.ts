@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://172.23.0.3:8000'
+const BACKEND_URL = process.env.BACKEND_URL || 'http://graphmind-rag:8000'
 
 export async function GET(request: NextRequest) {
   try {

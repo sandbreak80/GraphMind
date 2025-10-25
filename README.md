@@ -1,23 +1,24 @@
-# TradingAI Research Platform v2.0
+# GraphMind - Open RAG Research Framework
 
-A comprehensive Retrieval-Augmented Generation (RAG) system designed for trading and financial analysis, combining document knowledge, web search, and personal notes to provide intelligent responses.
+A self-hosted, multi-modal RAG research assistant built with Ollama, Chroma, and Next.js. Transform your research workflow with intelligent document retrieval, web search, and personal knowledge integration.
 
-## 🎯 Current Status: Production Ready v2.0
+## 🎯 Current Status: Phase 1 Transformation
 
-**Status**: ✅ Production Ready  
-**Version**: 2.0.0  
+**Status**: 🔄 **TRANSFORMING** from TradingAI → GraphMind  
+**Version**: 2.0.0 → 3.0.0 (Open RAG Framework)  
 **Last Updated**: October 25, 2024
 
 ## 🚀 Features
 
-### Chat Modes
-- **RAG Only**: Document-based responses from PDFs, video transcripts, and processed content
-- **Web Search Only**: Real-time web search results for current market information
-- **Obsidian Only**: Personal knowledge base integration for personalized advice
-- **Comprehensive Research**: Combined document and web search for comprehensive analysis
+### Research Modes
+- **Document Research**: PDF, video transcript, and document-based responses
+- **Web Search**: Real-time web search for current information
+- **Personal Knowledge**: Obsidian vault integration for personal notes
+- **Comprehensive Research**: Multi-source research combining all available data
 
 ### Advanced Capabilities
-- **User Memory System**: Persistent storage of user preferences, chat history, and insights
+- **Domain-Agnostic Framework**: Plugin system for any research domain
+- **User Memory System**: Persistent storage of user preferences and insights
 - **URL-Based Chat Routing**: Shareable chat links (`/chat/[id]`)
 - **Model Switching**: Change AI models mid-conversation
 - **Smart Chat Naming**: AI-powered chat title generation
@@ -33,11 +34,41 @@ A comprehensive Retrieval-Augmented Generation (RAG) system designed for trading
 - **Multiple LLM Support**: Ollama integration with various models
 - **Real-time Web Search**: SearXNG integration for current information
 - **Personal Knowledge**: Obsidian MCP client for personal notes
+- **Docker MCP Integration**: Filesystem, database, and Docker Hub access via MCP protocol
+- **Knowledge Graph Support**: GraphRAG implementation with Obsidian vault parsing
+- **Plugin Architecture**: Extensible system for domain-specific adapters
+- **CLI Interface**: Easy installation and management with `researchai` CLI
 
-## 📋 Requirements
+## 🚀 Quick Start
 
-### Quick Start
-- **Docker**: 20.10+ with Docker Compose 2.0+
+### Installation
+```bash
+# Install GraphMind
+curl -sSL https://raw.githubusercontent.com/username/graphmind/main/install.sh | bash
+
+# Or with Docker
+git clone https://github.com/username/graphmind.git
+cd graphmind
+docker compose up -d
+```
+
+### CLI Usage
+```bash
+# Initialize new project
+researchai init
+
+# Start services
+researchai up
+
+# Ingest documents
+researchai ingest ./documents
+
+# Start chat interface
+researchai chat
+```
+
+### Requirements
+- **Docker**: 20.10+ with Docker Compose v2.0+ (uses `docker compose` command)
 - **GPU**: NVIDIA with 24GB+ VRAM (recommended)
 - **RAM**: 32GB+ system memory
 - **Storage**: 100GB+ free space
@@ -51,7 +82,7 @@ A comprehensive Retrieval-Augmented Generation (RAG) system designed for trading
 ```bash
 # Clone repository
 git clone <repository-url>
-cd EminiPlayer
+cd GraphMind
 
 # Install Python dependencies
 pip install -r requirements.txt
@@ -67,7 +98,7 @@ docker compose up -d
 ## 📁 Project Structure
 
 ```
-EminiPlayer/
+GraphMind/
 ├── app/                          # Backend FastAPI application
 │   ├── auth.py                   # Authentication system
 │   ├── memory_system.py          # User memory management
@@ -105,13 +136,13 @@ EminiPlayer/
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/EminiPlayer.git
-   cd EminiPlayer
+   git clone https://github.com/yourusername/GraphMind.git
+   cd GraphMind
    ```
 
 2. **Start the services**
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
 
 3. **Access the application**
@@ -193,11 +224,11 @@ python -m pytest tests/ --cov=app --cov-report=html
 ### Production Deployment
 ```bash
 # Build and deploy
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 
 # Configure Cloudflare Tunnel
-cloudflared tunnel create eminiplayer
-cloudflared tunnel route dns eminiplayer emini.riffyx.com
+cloudflared tunnel create graphmind
+cloudflared tunnel route dns graphmind emini.riffyx.com
 ```
 
 ### Environment Configuration
@@ -305,10 +336,17 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Support
 
 - **Documentation**: [docs/](docs/)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/EminiPlayer/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/EminiPlayer/discussions)
+- **Issues**: [GitHub Issues](https://github.com/yourusername/GraphMind/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourusername/GraphMind/discussions)
 
 ## 🔄 Changelog
+
+### Phase 1 Transformation (v3.0.0)
+- 🔄 **Repository Rebrand**: TradingAI → GraphMind (Open RAG Framework)
+- 🔄 **Domain-Agnostic Architecture**: Plugin system for any research domain
+- 🔄 **CLI Interface**: Easy installation and management with `researchai` CLI
+- 🔄 **Modular Design**: Extensible connectors and adapters
+- 🔄 **Open Source Ready**: Apache 2.0 license and community governance
 
 ### Recent Updates (v2.0)
 - ✅ **URL-Based Chat Routing**: Individual chat URLs with shareable links
@@ -337,4 +375,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**EminiPlayer** - Advanced Trading RAG System for Intelligent Financial Analysis
+**GraphMind** - Advanced Open RAG Framework for Intelligent Knowledge Retrieval

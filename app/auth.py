@@ -93,6 +93,20 @@ class AuthManager:
                 headers={"WWW-Authenticate": "Bearer"},
             )
         return user
+    
+    def change_password(self, username: str, current_password: str, new_password: str) -> bool:
+        """Change a user's password."""
+        user = self.users.get(username)
+        if not user:
+            return False
+        
+        # Verify current password
+        if not self.verify_password(current_password, user["hashed_password"]):
+            return False
+        
+        # Update to new password
+        user["hashed_password"] = self._hash_password(new_password)
+        return True
 
 # Global auth manager instance
 auth_manager = AuthManager()

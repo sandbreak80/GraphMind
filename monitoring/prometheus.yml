@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'graphmind-rag'
+    static_configs:
+      - targets: ['graphmind-rag:8000']
+  
+  - job_name: 'searxng'
+    static_configs:
+      - targets: ['searxng:8080']
+  
+  - job_name: 'ollama'
+    static_configs:
+      - targets: ['ollama:11434']

@@ -135,7 +135,7 @@ services:
 
 ### Prerequisites
 - **Docker**: 20.10+
-- **Docker Compose**: 2.0+
+- **Docker Compose**: v2.0+ (uses `docker compose` command)
 - **NVIDIA Container Toolkit**: Latest
 - **Git**: For cloning repository
 
@@ -166,7 +166,7 @@ docker compose build --progress=plain
 ### Software
 - **Docker Engine**: 20.10+
 - **NVIDIA Container Toolkit**: Latest
-- **Docker Compose**: 2.0+
+- **Docker Compose**: v2.0+ (uses `docker compose` command)
 
 ## Container Health Checks
 

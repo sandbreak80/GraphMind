@@ -201,7 +201,7 @@ docker-compose up -d
 ### Backup
 ```bash
 # Backup volumes
-docker run --rm -v eminiplayer_chroma-data:/data -v $(pwd):/backup alpine tar czf /backup/chroma-backup.tar.gz -C /data .
+docker run --rm -v graphmind_chroma-data:/data -v $(pwd):/backup alpine tar czf /backup/chroma-backup.tar.gz -C /data .
 
 # Backup configuration
 tar czf config-backup.tar.gz nginx/ docker-compose.yml .env.production

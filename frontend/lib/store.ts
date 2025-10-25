@@ -124,6 +124,7 @@ interface AppState {
   
   setModels: (models: OllamaModel[]) => void
   setSelectedModel: (model: string) => void
+  refreshModels: () => Promise<void>
   
   updateSettings: (settings: Partial<Settings>) => void
   setSidebarOpen: (open: boolean) => void
@@ -142,7 +143,7 @@ const defaultSettings: Settings = {
   temperature: 0.1,
   maxTokens: 8000,
   topKSampling: 40,    // Renamed and optimized for high-end hardware
-  enableWebSearch: false,
+  enableWebSearch: true,  // Enabled by default for all 4 modes
   enableRAG: true,
   enableObsidian: true,
   theme: 'system',
@@ -307,11 +308,22 @@ export const useStore = create<AppState>()(
       },
       
       deleteChat: (chatId) => {
-        set(state => ({
-          chats: state.chats.filter(chat => chat.id !== chatId),
-          currentChatId: state.currentChatId === chatId ? null : state.currentChatId,
-          messages: state.currentChatId === chatId ? [] : state.messages
-        }))
+        const state = get()
+        const isDeletingCurrentChat = state.currentChatId === chatId
+        
+        // Filter out the deleted chat
+        const remainingChats = state.chats.filter(chat => chat.id !== chatId)
+        
+        set({
+          chats: remainingChats,
+          currentChatId: isDeletingCurrentChat ? null : state.currentChatId,
+          messages: isDeletingCurrentChat ? [] : state.messages
+        })
+        
+        // If deleting the current chat, redirect to home page
+        if (isDeletingCurrentChat && typeof window !== 'undefined') {
+          window.location.href = '/'
+        }
       },
       
       clearMessages: () => {
@@ -387,6 +399,19 @@ export const useStore = create<AppState>()(
       
       setModels: (models) => set({ models }),
       setSelectedModel: (model) => set({ selectedModel: model }),
+      
+      refreshModels: async () => {
+        try {
+          const { getApiUrl } = await import('./api')
+          const response = await fetch(`${getApiUrl()}/ollama/models`)
+          if (response.ok) {
+            const data = await response.json()
+            set({ models: data.models || [] })
+          }
+        } catch (error) {
+          console.error('Failed to refresh models:', error)
+        }
+      },
       
       // Model switching
       switchModel: (model) => {

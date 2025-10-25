@@ -55,10 +55,10 @@ export function LoginForm({ onLogin }: LoginFormProps) {
             <LockClosedIcon className="h-6 w-6 text-primary-600 dark:text-primary-400" />
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
-            TradingAI Research Platform Login
+            GraphMind Login
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-            Sign in to access the trading strategy knowledge base
+            Sign in to access the GraphMind research framework
           </p>
         </div>
         
@@ -123,12 +123,6 @@ export function LoginForm({ onLogin }: LoginFormProps) {
             >
               {isLoading ? 'Signing in...' : 'Sign in'}
             </button>
-          </div>
-
-          <div className="text-center text-sm text-gray-600 dark:text-gray-400">
-            <p>Default credentials:</p>
-            <p><strong>Username:</strong> admin</p>
-            <p><strong>Password:</strong> admin123</p>
           </div>
         </form>
       </div>

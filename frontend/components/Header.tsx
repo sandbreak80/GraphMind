@@ -36,10 +36,9 @@ export function Header({ onLogout }: HeaderProps) {
   }
 
   const handleTitleClick = () => {
-    const newChatId = createChat('New Chat')
-    // Navigate to the new chat URL
+    // Navigate to homepage
     if (typeof window !== 'undefined') {
-      window.location.href = `/chat/${newChatId}`
+      window.location.href = '/'
     }
   }
 
@@ -59,17 +58,19 @@ export function Header({ onLogout }: HeaderProps) {
               <button
                 onClick={handleTitleClick}
                 className="text-xl font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
-                title="Click to start a new chat"
+                title="Go to homepage"
               >
-                TradingAI Research Platform
+                GraphMind
               </button>
               <div className="flex items-center space-x-1 text-xs text-gray-500 dark:text-gray-400">
                 <div className={`w-2 h-2 rounded-full ${settings.enableRAG ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                <span>RAG</span>
+                <span>Docs</span>
                 <div className={`w-2 h-2 rounded-full ${settings.enableObsidian ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
                 <span>Obsidian</span>
                 <div className={`w-2 h-2 rounded-full ${settings.enableWebSearch ? 'bg-purple-500' : 'bg-gray-300'}`}></div>
                 <span>Web</span>
+                <div className={`w-2 h-2 rounded-full ${settings.enableWebSearch && settings.enableRAG && settings.enableObsidian ? 'bg-orange-500' : 'bg-gray-300'}`}></div>
+                <span>Research</span>
               </div>
             </div>
           </div>

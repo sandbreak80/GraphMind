@@ -55,10 +55,10 @@ class QueryAnalyzer:
         
         # Model recommendations based on complexity
         self.model_mapping = {
-            'simple': 'llama3.2:3b',
-            'medium': 'llama3.1:latest', 
-            'complex': 'qwen2.5-coder:14b',
-            'research': 'deepseek-r1:latest'
+            'simple': 'deepseek-r1:7b',
+            'medium': 'deepseek-r1:7b', 
+            'complex': 'deepseek-r1:14b',
+            'research': 'deepseek-r1:14b'
         }
         
         # Retrieval parameter recommendations

@@ -1,0 +1,426 @@
+#!/usr/bin/env python3
+"""
+GraphMind CLI - Open RAG Research Framework
+Command-line interface for GraphMind
+"""
+
+import sys
+import os
+import argparse
+import subprocess
+import json
+from pathlib import Path
+from typing import Dict, List, Any, Optional
+
+# Add app directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app'))
+
+class GraphMindCLI:
+    """GraphMind command-line interface."""
+    
+    def __init__(self):
+        """Initialize the CLI."""
+        self.project_root = Path(__file__).parent
+        self.config_file = self.project_root / ".env"
+        self.docker_compose_files = {
+            'core': 'docker-compose.core.yml',
+            'full': 'docker-compose.full.yml',
+            'dev': 'docker-compose.dev.yml'
+        }
+    
+    def init(self, args):
+        """Initialize a new GraphMind project."""
+        print("🧠 Initializing GraphMind project...")
+        
+        # Create environment file
+        if not self.config_file.exists():
+            env_example = self.project_root / "env.example"
+            if env_example.exists():
+                self.config_file.write_text(env_example.read_text())
+                print(f"✅ Created {self.config_file}")
+            else:
+                print("❌ env.example not found")
+                return 1
+        
+        # Create directories
+        directories = ['documents', 'outputs', 'examples', 'config/domains']
+        for directory in directories:
+            dir_path = self.project_root / directory
+            dir_path.mkdir(parents=True, exist_ok=True)
+            print(f"✅ Created directory: {directory}")
+        
+        # Create domain configs if they don't exist
+        domain_configs = {
+            'finance': self._get_finance_config(),
+            'legal': self._get_legal_config(),
+            'health': self._get_health_config()
+        }
+        
+        for domain, config in domain_configs.items():
+            config_file = self.project_root / f"config/domains/{domain}.yaml"
+            if not config_file.exists():
+                config_file.write_text(config)
+                print(f"✅ Created domain config: {domain}")
+        
+        print("\n🎉 GraphMind project initialized!")
+        print("Next steps:")
+        print("1. Edit .env file to configure your setup")
+        print("2. Run 'researchai up' to start services")
+        print("3. Add documents to ./documents directory")
+        
+        return 0
+    
+    def up(self, args):
+        """Start GraphMind services."""
+        profile = getattr(args, 'profile', 'core')
+        compose_file = self.docker_compose_files.get(profile)
+        
+        if not compose_file:
+            print(f"❌ Unknown profile: {profile}")
+            return 1
+        
+        print(f"🚀 Starting GraphMind services with {profile} profile...")
+        
+        try:
+            cmd = ['docker-compose', '-f', compose_file, 'up', '-d']
+            result = subprocess.run(cmd, cwd=self.project_root, check=True)
+            
+            print("✅ GraphMind services started")
+            self._show_service_urls(profile)
+            return 0
+            
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Failed to start services: {e}")
+            return 1
+    
+    def down(self, args):
+        """Stop GraphMind services."""
+        profile = getattr(args, 'profile', 'core')
+        compose_file = self.docker_compose_files.get(profile)
+        
+        if not compose_file:
+            print(f"❌ Unknown profile: {profile}")
+            return 1
+        
+        print(f"🛑 Stopping GraphMind services...")
+        
+        try:
+            cmd = ['docker-compose', '-f', compose_file, 'down']
+            result = subprocess.run(cmd, cwd=self.project_root, check=True)
+            
+            print("✅ GraphMind services stopped")
+            return 0
+            
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Failed to stop services: {e}")
+            return 1
+    
+    def restart(self, args):
+        """Restart GraphMind services."""
+        print("🔄 Restarting GraphMind services...")
+        
+        # Stop services
+        self.down(args)
+        
+        # Start services
+        return self.up(args)
+    
+    def status(self, args):
+        """Show service status."""
+        profile = getattr(args, 'profile', 'core')
+        compose_file = self.docker_compose_files.get(profile)
+        
+        if not compose_file:
+            print(f"❌ Unknown profile: {profile}")
+            return 1
+        
+        print(f"📊 GraphMind service status ({profile} profile):")
+        
+        try:
+            cmd = ['docker-compose', '-f', compose_file, 'ps']
+            result = subprocess.run(cmd, cwd=self.project_root, check=True)
+            return 0
+            
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Failed to get status: {e}")
+            return 1
+    
+    def logs(self, args):
+        """Show service logs."""
+        profile = getattr(args, 'profile', 'core')
+        compose_file = self.docker_compose_files.get(profile)
+        
+        if not compose_file:
+            print(f"❌ Unknown profile: {profile}")
+            return 1
+        
+        service = getattr(args, 'service', None)
+        
+        try:
+            if service:
+                cmd = ['docker-compose', '-f', compose_file, 'logs', '-f', service]
+            else:
+                cmd = ['docker-compose', '-f', compose_file, 'logs', '-f']
+            
+            result = subprocess.run(cmd, cwd=self.project_root, check=True)
+            return 0
+            
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Failed to get logs: {e}")
+            return 1
+    
+    def ingest(self, args):
+        """Ingest documents."""
+        path = args.path
+        domain = getattr(args, 'domain', 'finance')
+        
+        if not os.path.exists(path):
+            print(f"❌ Path not found: {path}")
+            return 1
+        
+        print(f"📚 Ingesting documents from {path} for {domain} domain...")
+        
+        # TODO: Implement document ingestion
+        print("⚠️  Document ingestion not yet implemented")
+        print("This will be implemented in the next phase")
+        
+        return 0
+    
+    def chat(self, args):
+        """Start chat interface."""
+        print("💬 Opening GraphMind chat interface...")
+        print("🌐 Web interface: http://localhost:3000")
+        print("🔗 API: http://localhost:8000")
+        print("\nPress Ctrl+C to stop")
+        
+        # TODO: Implement chat interface
+        print("⚠️  Chat interface not yet implemented")
+        print("This will be implemented in the next phase")
+        
+        return 0
+    
+    def config(self, args):
+        """Manage configuration."""
+        action = args.action
+        
+        if action == 'show':
+            self._show_config()
+        elif action == 'set':
+            self._set_config(args.key, args.value)
+        elif action == 'get':
+            self._get_config(args.key)
+        else:
+            print(f"❌ Unknown config action: {action}")
+            return 1
+        
+        return 0
+    
+    def _show_service_urls(self, profile: str):
+        """Show service URLs."""
+        print("\n🌐 Service URLs:")
+        print("  - Web Interface: http://localhost:3000")
+        print("  - API: http://localhost:8000")
+        print("  - ChromaDB: http://localhost:8001")
+        print("  - Redis: localhost:6379")
+        
+        if profile == 'full':
+            print("  - SearXNG: http://localhost:8080")
+            print("  - Prometheus: http://localhost:9090")
+            print("  - Grafana: http://localhost:3000")
+    
+    def _show_config(self):
+        """Show current configuration."""
+        if not self.config_file.exists():
+            print("❌ No configuration file found")
+            return
+        
+        print("📋 Current configuration:")
+        with open(self.config_file, 'r') as f:
+            for line in f:
+                if line.strip() and not line.startswith('#'):
+                    print(f"  {line.strip()}")
+    
+    def _set_config(self, key: str, value: str):
+        """Set configuration value."""
+        print(f"🔧 Setting {key} = {value}")
+        # TODO: Implement configuration management
+        print("⚠️  Configuration management not yet implemented")
+    
+    def _get_config(self, key: str):
+        """Get configuration value."""
+        print(f"🔍 Getting {key}")
+        # TODO: Implement configuration management
+        print("⚠️  Configuration management not yet implemented")
+    
+    def _get_finance_config(self) -> str:
+        """Get finance domain configuration."""
+        return """name: "Finance Research"
+description: "Financial analysis and trading research assistant"
+version: "1.0.0"
+
+prompts:
+  system: |
+    You are a financial research assistant specializing in market analysis, trading strategies, and financial data interpretation.
+    
+  web_search: |
+    Search for current financial news, market data, and trading information related to: {query}
+
+connectors:
+  - pdf_connector
+  - web_connector
+  - obsidian_connector
+
+settings:
+  max_tokens: 8000
+  temperature: 0.1
+  top_k: 5
+  rerank_top_k: 8
+"""
+    
+    def _get_legal_config(self) -> str:
+        """Get legal domain configuration."""
+        return """name: "Legal Research"
+description: "Legal research and case law analysis assistant"
+version: "1.0.0"
+
+prompts:
+  system: |
+    You are a legal research assistant specializing in case law analysis, legal document interpretation, and legal research.
+    
+  web_search: |
+    Search for current legal news, case law updates, and legal information related to: {query}
+
+connectors:
+  - pdf_connector
+  - web_connector
+  - database_connector
+
+settings:
+  max_tokens: 8000
+  temperature: 0.1
+  top_k: 5
+  rerank_top_k: 8
+"""
+    
+    def _get_health_config(self) -> str:
+        """Get health domain configuration."""
+        return """name: "Health Research"
+description: "Medical and health research assistant"
+version: "1.0.0"
+
+prompts:
+  system: |
+    You are a medical research assistant specializing in health research, medical literature analysis, and clinical data interpretation.
+    
+  web_search: |
+    Search for current medical news, research updates, and health information related to: {query}
+
+connectors:
+  - pdf_connector
+  - web_connector
+  - database_connector
+
+settings:
+  max_tokens: 8000
+  temperature: 0.1
+  top_k: 5
+  rerank_top_k: 8
+"""
+
+def main():
+    """Main CLI entry point."""
+    parser = argparse.ArgumentParser(
+        description="GraphMind CLI - Open RAG Research Framework",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  researchai init                    # Initialize new project
+  researchai up                      # Start services (core profile)
+  researchai up --profile full      # Start services (full profile)
+  researchai down                    # Stop services
+  researchai status                  # Show service status
+  researchai logs                    # Show service logs
+  researchai ingest ./docs           # Ingest documents
+  researchai chat                    # Start chat interface
+  researchai config show             # Show configuration
+        """
+    )
+    
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    
+    # Init command
+    init_parser = subparsers.add_parser('init', help='Initialize new GraphMind project')
+    
+    # Up command
+    up_parser = subparsers.add_parser('up', help='Start GraphMind services')
+    up_parser.add_argument('--profile', choices=['core', 'full', 'dev'], default='core',
+                          help='Docker Compose profile to use')
+    
+    # Down command
+    down_parser = subparsers.add_parser('down', help='Stop GraphMind services')
+    down_parser.add_argument('--profile', choices=['core', 'full', 'dev'], default='core',
+                            help='Docker Compose profile to use')
+    
+    # Restart command
+    restart_parser = subparsers.add_parser('restart', help='Restart GraphMind services')
+    restart_parser.add_argument('--profile', choices=['core', 'full', 'dev'], default='core',
+                                help='Docker Compose profile to use')
+    
+    # Status command
+    status_parser = subparsers.add_parser('status', help='Show service status')
+    status_parser.add_argument('--profile', choices=['core', 'full', 'dev'], default='core',
+                               help='Docker Compose profile to use')
+    
+    # Logs command
+    logs_parser = subparsers.add_parser('logs', help='Show service logs')
+    logs_parser.add_argument('--profile', choices=['core', 'full', 'dev'], default='core',
+                            help='Docker Compose profile to use')
+    logs_parser.add_argument('--service', help='Specific service to show logs for')
+    
+    # Ingest command
+    ingest_parser = subparsers.add_parser('ingest', help='Ingest documents')
+    ingest_parser.add_argument('path', help='Path to documents to ingest')
+    ingest_parser.add_argument('--domain', default='finance', help='Domain for ingestion')
+    
+    # Chat command
+    chat_parser = subparsers.add_parser('chat', help='Start chat interface')
+    
+    # Config command
+    config_parser = subparsers.add_parser('config', help='Manage configuration')
+    config_parser.add_argument('action', choices=['show', 'set', 'get'], help='Config action')
+    config_parser.add_argument('--key', help='Configuration key')
+    config_parser.add_argument('--value', help='Configuration value')
+    
+    args = parser.parse_args()
+    
+    if not args.command:
+        parser.print_help()
+        return 1
+    
+    cli = GraphMindCLI()
+    
+    # Route to appropriate handler
+    if args.command == 'init':
+        return cli.init(args)
+    elif args.command == 'up':
+        return cli.up(args)
+    elif args.command == 'down':
+        return cli.down(args)
+    elif args.command == 'restart':
+        return cli.restart(args)
+    elif args.command == 'status':
+        return cli.status(args)
+    elif args.command == 'logs':
+        return cli.logs(args)
+    elif args.command == 'ingest':
+        return cli.ingest(args)
+    elif args.command == 'chat':
+        return cli.chat(args)
+    elif args.command == 'config':
+        return cli.config(args)
+    else:
+        print(f"❌ Unknown command: {args.command}")
+        return 1
+
+if __name__ == '__main__':
+    sys.exit(main())

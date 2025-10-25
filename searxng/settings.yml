@@ -1,0 +1,129 @@
+# GraphMind SearXNG Configuration
+# Optimized for LLM with JSON output and result limits
+
+# Use default settings as a base and then override specific options
+use_default_settings: true
+
+# Search configuration
+search:
+  # Enable JSON as an available output format for the API
+  formats:
+    - html
+    - json
+  
+  # Maximum number of pages that can be requested
+  max_page: 10
+
+# Server configuration
+server:
+  # Disable the rate limiter to prevent LLM requests from being blocked
+  # Note: limiter requires Valkey/Redis database
+  limiter: false
+  
+  # Secret key for session encryption (change this in production!)
+  secret_key: "graphmind-searxng-secret-key-please-change-in-production"
+  
+  # Bind to all interfaces within container
+  bind_address: "0.0.0.0"
+
+# Valkey/Redis configuration for caching and rate limiting
+valkey:
+  url: valkey://searxng-redis:6379/0
+
+# General settings
+general:
+  # Instance name
+  instance_name: "GraphMind SearXNG"
+  
+  # Enable debug mode for troubleshooting
+  debug: false
+  
+  # Contact information (optional)
+  contact_url: false
+
+# UI settings
+ui:
+  # Default theme
+  default_theme: simple
+  
+  # Default locale
+  default_locale: en
+  
+  # Results on new tab
+  results_on_new_tab: false
+  
+  # Infinite scroll
+  infinite_scroll: false
+
+# Outgoing request settings
+outgoing:
+  # Request timeout in seconds
+  request_timeout: 10.0
+  
+  # Maximum redirects
+  max_redirects: 5
+  
+  # Use HTTP/2
+  enable_http2: true
+
+# Enabled search engines
+# This uses the default engine configuration
+# You can customize which engines to use by uncommenting and modifying the engines section
+engines:
+  # Wikipedia
+  - name: wikipedia
+    engine: wikipedia
+    shortcut: wp
+    disabled: false
+
+  # DuckDuckGo
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+    disabled: false
+
+  # Google (if accessible)
+  - name: google
+    engine: google
+    shortcut: go
+    disabled: false
+
+  # Bing
+  - name: bing
+    engine: bing
+    shortcut: bi
+    disabled: false
+
+  # Reddit
+  - name: reddit
+    engine: reddit
+    shortcut: re
+    disabled: false
+
+  # GitHub
+  - name: github
+    engine: github
+    shortcut: gh
+    disabled: false
+
+  # Stack Overflow
+  - name: stackoverflow
+    engine: stackoverflow
+    shortcut: so
+    disabled: false
+
+  # arXiv
+  - name: arxiv
+    engine: arxiv
+    shortcut: arx
+    disabled: false
+
+  # Semantic Scholar
+  - name: semantic scholar
+    engine: semantic_scholar
+    shortcut: se
+    disabled: false
+
+# Redis cache (optional, improves performance)
+redis:
+  url: redis://searxng-redis:6379/0

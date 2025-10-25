@@ -24,7 +24,7 @@ class SearchQuery:
 class IntelligentQueryGenerator:
     """Uses LLM to generate intelligent search queries from user prompts."""
     
-    def __init__(self, ollama_base_url: str = "http://host.docker.internal:11434"):
+    def __init__(self, ollama_base_url: str = "http://ollama:11434"):
         self.ollama_base_url = ollama_base_url
         self.model = "qwen2.5-coder:14b"  # Use the same model as the main system
     

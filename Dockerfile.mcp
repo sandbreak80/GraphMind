@@ -1,0 +1,372 @@
+# GraphMind MCP Server Dockerfile
+# Multi-purpose MCP server for Obsidian, Docker, and Filesystem
+
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install MCP dependencies
+RUN pip install --no-cache-dir \
+    mcp \
+    docker \
+    aiofiles \
+    aiohttp \
+    asyncio-mqtt
+
+# Copy MCP server code
+COPY app/core/mcp_integration.py ./mcp_integration.py
+COPY app/connectors/ ./connectors/
+COPY app/adapters/ ./adapters/
+
+# Create MCP server script
+RUN cat > mcp_server.py << 'EOF'
+#!/usr/bin/env python3
+"""
+GraphMind MCP Server
+Multi-purpose MCP server for various data sources
+"""
+
+import asyncio
+import json
+import logging
+import os
+import sys
+from typing import Dict, Any, List
+import aiohttp
+from pathlib import Path
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class GraphMindMCPServer:
+    """GraphMind MCP Server implementation."""
+    
+    def __init__(self):
+        self.server_type = os.getenv('MCP_SERVER_TYPE', 'obsidian')
+        self.server_port = int(os.getenv('MCP_SERVER_PORT', '8081'))
+        self.graphmind_url = os.getenv('GRAPHMINDSERVER_URL', 'http://graphmind-rag:8000')
+        self.obsidian_vault_path = os.getenv('OBSIDIAN_VAULT_PATH', '/app/obsidian_vault')
+        self.filesystem_root = os.getenv('FILESYSTEM_ROOT_PATH', '/app')
+        
+    async def start_server(self):
+        """Start the MCP server."""
+        logger.info(f"Starting GraphMind MCP Server ({self.server_type}) on port {self.server_port}")
+        
+        # Start HTTP server
+        from aiohttp import web
+        
+        app = web.Application()
+        app.router.add_get('/health', self.health_check)
+        app.router.add_post('/mcp/execute', self.execute_mcp_command)
+        app.router.add_get('/mcp/capabilities', self.get_capabilities)
+        app.router.add_get('/mcp/status', self.get_status)
+        
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, '0.0.0.0', self.server_port)
+        await site.start()
+        
+        logger.info(f"MCP Server started on port {self.server_port}")
+        
+        # Keep server running
+        try:
+            await asyncio.Future()
+        except KeyboardInterrupt:
+            logger.info("Shutting down MCP Server")
+    
+    async def health_check(self, request):
+        """Health check endpoint."""
+        return web.json_response({
+            'status': 'healthy',
+            'server_type': self.server_type,
+            'port': self.server_port
+        })
+    
+    async def execute_mcp_command(self, request):
+        """Execute MCP command."""
+        try:
+            data = await request.json()
+            command = data.get('command')
+            parameters = data.get('parameters', {})
+            
+            result = await self._execute_command(command, parameters)
+            
+            return web.json_response({
+                'success': True,
+                'result': result
+            })
+            
+        except Exception as e:
+            logger.error(f"MCP command execution failed: {e}")
+            return web.json_response({
+                'success': False,
+                'error': str(e)
+            }, status=500)
+    
+    async def get_capabilities(self, request):
+        """Get MCP server capabilities."""
+        capabilities = await self._get_capabilities()
+        return web.json_response(capabilities)
+    
+    async def get_status(self, request):
+        """Get MCP server status."""
+        status = await self._get_status()
+        return web.json_response(status)
+    
+    async def _execute_command(self, command: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute a specific MCP command."""
+        if self.server_type == 'obsidian':
+            return await self._execute_obsidian_command(command, parameters)
+        elif self.server_type == 'docker':
+            return await self._execute_docker_command(command, parameters)
+        elif self.server_type == 'filesystem':
+            return await self._execute_filesystem_command(command, parameters)
+        else:
+            return {'error': f'Unknown server type: {self.server_type}'}
+    
+    async def _execute_obsidian_command(self, command: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute Obsidian-specific commands."""
+        if command == 'list_notes':
+            return await self._list_obsidian_notes()
+        elif command == 'read_note':
+            note_path = parameters.get('note_path')
+            return await self._read_obsidian_note(note_path)
+        elif command == 'search_notes':
+            query = parameters.get('query', '')
+            return await self._search_obsidian_notes(query)
+        else:
+            return {'error': f'Unknown Obsidian command: {command}'}
+    
+    async def _execute_docker_command(self, command: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute Docker-specific commands."""
+        if command == 'list_containers':
+            return await self._list_docker_containers()
+        elif command == 'get_container_info':
+            container_id = parameters.get('container_id')
+            return await self._get_docker_container_info(container_id)
+        else:
+            return {'error': f'Unknown Docker command: {command}'}
+    
+    async def _execute_filesystem_command(self, command: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute filesystem-specific commands."""
+        if command == 'list_files':
+            path = parameters.get('path', self.filesystem_root)
+            return await self._list_filesystem_files(path)
+        elif command == 'read_file':
+            file_path = parameters.get('file_path')
+            return await self._read_filesystem_file(file_path)
+        else:
+            return {'error': f'Unknown filesystem command: {command}'}
+    
+    async def _list_obsidian_notes(self) -> Dict[str, Any]:
+        """List Obsidian notes."""
+        try:
+            vault_path = Path(self.obsidian_vault_path)
+            if not vault_path.exists():
+                return {'notes': [], 'error': 'Obsidian vault not found'}
+            
+            notes = []
+            for md_file in vault_path.glob('**/*.md'):
+                notes.append({
+                    'path': str(md_file.relative_to(vault_path)),
+                    'name': md_file.name,
+                    'size': md_file.stat().st_size
+                })
+            
+            return {'notes': notes}
+        except Exception as e:
+            return {'error': str(e)}
+    
+    async def _read_obsidian_note(self, note_path: str) -> Dict[str, Any]:
+        """Read an Obsidian note."""
+        try:
+            full_path = Path(self.obsidian_vault_path) / note_path
+            if not full_path.exists():
+                return {'error': 'Note not found'}
+            
+            content = full_path.read_text(encoding='utf-8')
+            return {
+                'content': content,
+                'path': note_path,
+                'size': len(content)
+            }
+        except Exception as e:
+            return {'error': str(e)}
+    
+    async def _search_obsidian_notes(self, query: str) -> Dict[str, Any]:
+        """Search Obsidian notes."""
+        try:
+            vault_path = Path(self.obsidian_vault_path)
+            results = []
+            
+            for md_file in vault_path.glob('**/*.md'):
+                try:
+                    content = md_file.read_text(encoding='utf-8')
+                    if query.lower() in content.lower():
+                        results.append({
+                            'path': str(md_file.relative_to(vault_path)),
+                            'name': md_file.name,
+                            'snippet': content[:200] + '...' if len(content) > 200 else content
+                        })
+                except Exception:
+                    continue
+            
+            return {'results': results, 'query': query}
+        except Exception as e:
+            return {'error': str(e)}
+    
+    async def _list_docker_containers(self) -> Dict[str, Any]:
+        """List Docker containers."""
+        try:
+            import docker
+            client = docker.from_env()
+            containers = client.containers.list(all=True)
+            
+            container_list = []
+            for container in containers:
+                container_list.append({
+                    'id': container.id,
+                    'name': container.name,
+                    'status': container.status,
+                    'image': container.image.tags[0] if container.image.tags else 'unknown'
+                })
+            
+            return {'containers': container_list}
+        except Exception as e:
+            return {'error': str(e)}
+    
+    async def _get_docker_container_info(self, container_id: str) -> Dict[str, Any]:
+        """Get Docker container information."""
+        try:
+            import docker
+            client = docker.from_env()
+            container = client.containers.get(container_id)
+            
+            return {
+                'id': container.id,
+                'name': container.name,
+                'status': container.status,
+                'image': container.image.tags[0] if container.image.tags else 'unknown',
+                'created': container.attrs['Created'],
+                'ports': container.attrs['NetworkSettings']['Ports']
+            }
+        except Exception as e:
+            return {'error': str(e)}
+    
+    async def _list_filesystem_files(self, path: str) -> Dict[str, Any]:
+        """List filesystem files."""
+        try:
+            target_path = Path(path)
+            if not target_path.exists():
+                return {'files': [], 'error': 'Path not found'}
+            
+            files = []
+            for item in target_path.iterdir():
+                files.append({
+                    'name': item.name,
+                    'path': str(item),
+                    'is_file': item.is_file(),
+                    'is_directory': item.is_dir(),
+                    'size': item.stat().st_size if item.is_file() else 0
+                })
+            
+            return {'files': files, 'path': path}
+        except Exception as e:
+            return {'error': str(e)}
+    
+    async def _read_filesystem_file(self, file_path: str) -> Dict[str, Any]:
+        """Read a filesystem file."""
+        try:
+            target_path = Path(file_path)
+            if not target_path.exists():
+                return {'error': 'File not found'}
+            
+            if not target_path.is_file():
+                return {'error': 'Not a file'}
+            
+            content = target_path.read_text(encoding='utf-8')
+            return {
+                'content': content,
+                'path': file_path,
+                'size': len(content)
+            }
+        except Exception as e:
+            return {'error': str(e)}
+    
+    async def _get_capabilities(self) -> Dict[str, Any]:
+        """Get server capabilities."""
+        if self.server_type == 'obsidian':
+            return {
+                'server_type': 'obsidian',
+                'capabilities': [
+                    'list_notes',
+                    'read_note',
+                    'search_notes',
+                    'note_metadata'
+                ],
+                'vault_path': self.obsidian_vault_path
+            }
+        elif self.server_type == 'docker':
+            return {
+                'server_type': 'docker',
+                'capabilities': [
+                    'list_containers',
+                    'get_container_info',
+                    'container_logs',
+                    'container_stats'
+                ]
+            }
+        elif self.server_type == 'filesystem':
+            return {
+                'server_type': 'filesystem',
+                'capabilities': [
+                    'list_files',
+                    'read_file',
+                    'file_metadata',
+                    'search_files'
+                ],
+                'root_path': self.filesystem_root
+            }
+        else:
+            return {'error': f'Unknown server type: {self.server_type}'}
+    
+    async def _get_status(self) -> Dict[str, Any]:
+        """Get server status."""
+        return {
+            'status': 'running',
+            'server_type': self.server_type,
+            'port': self.server_port,
+            'graphmind_url': self.graphmind_url
+        }
+
+async def main():
+    """Main entry point."""
+    server = GraphMindMCPServer()
+    await server.start_server()
+
+if __name__ == '__main__':
+    asyncio.run(main())
+EOF
+
+# Make script executable
+RUN chmod +x mcp_server.py
+
+# Expose port
+EXPOSE 8081 8082 8083
+
+# Start MCP server
+CMD ["python", "mcp_server.py"]

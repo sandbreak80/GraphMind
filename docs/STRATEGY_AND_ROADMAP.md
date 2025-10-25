@@ -60,13 +60,17 @@
 - [x] Performance optimization with caching
 - [x] Parallel processing with GPU acceleration
 - [x] Configurable retrieval parameters
+- [x] Docker MCP integration (filesystem, database, Docker Hub)
 
 #### 2.2 Next-Level Retrieval Improvements
 - [ ] Obsidian GraphRAG implementation (unique competitive advantage)
+- [ ] Graph-enhanced retrieval with graph traversal
+- [ ] Neo4j integration for graph database
 - [ ] PDF parsing upgrade with GROBID/Marker
 - [ ] Self-check verification system for answer accuracy
 - [ ] Golden question set for quality evaluation
 - [ ] Domain-specific reranking optimization
+- [ ] Graph-based reranking with relationship weighting
 
 #### 2.3 Monitoring and Evaluation
 - [ ] Prometheus/Grafana monitoring dashboard

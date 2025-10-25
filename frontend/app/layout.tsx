@@ -9,8 +9,8 @@ import 'katex/dist/katex.min.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'TradingAI Research Platform',
-  description: 'Comprehensive AI-powered research platform with RAG, web search, Obsidian integration, and intelligent query generation',
+  title: 'GraphMind - Open RAG Framework',
+  description: 'Open-source RAG framework for domain-agnostic research with modular architecture, MCP integration, and intelligent knowledge retrieval',
 }
 
 export default function RootLayout({

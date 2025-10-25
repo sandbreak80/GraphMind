@@ -14,13 +14,15 @@ logger = logging.getLogger(__name__)
 class SearXNGClient:
     """High-performance SearXNG client for web search integration."""
     
-    def __init__(self, base_url: str = "http://192.168.50.236:8888", timeout: int = 10):
+    def __init__(self, base_url: str = "http://searxng:8080", timeout: int = 10):
         self.base_url = base_url.rstrip('/')
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'TradingAI-Research-Platform/2.0',
-            'Accept': 'application/json'
+            'User-Agent': 'GraphMind-Research-Platform/2.0',
+            'Accept': 'application/json',
+            'X-Forwarded-For': '127.0.0.1',  # Required for SearXNG botdetection
+            'X-Real-IP': '127.0.0.1'  # Required for SearXNG botdetection
         })
     
     def search(self, query: str, categories: List[str] = None, 
@@ -90,10 +92,18 @@ class SearXNGClient:
             if engines:
                 params['engines'] = ','.join(engines)
             
+            headers = {
+                'User-Agent': 'GraphMind-Research-Platform/2.0',
+                'Accept': 'application/json',
+                'X-Forwarded-For': '127.0.0.1',
+                'X-Real-IP': '127.0.0.1'
+            }
+            
             async with aiohttp.ClientSession() as session:
                 async with session.get(
                     f"{self.base_url}/search",
                     params=params,
+                    headers=headers,
                     timeout=aiohttp.ClientTimeout(total=self.timeout)
                 ) as response:
                     response.raise_for_status()

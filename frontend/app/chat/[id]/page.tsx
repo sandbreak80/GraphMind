@@ -31,8 +31,10 @@ export default function ChatPage() {
         setChatExists(true)
         setCurrentChat(chatId)
       } else {
-        // Chat doesn't exist, redirect to home
-        router.push('/')
+        // Chat doesn't exist, create a new one instead of showing error
+        const { createChat } = useStore.getState()
+        const newChatId = createChat('New Chat')
+        router.push(`/chat/${newChatId}`)
       }
     }
   }, [chatId, chats, checkAuth, setCurrentChat, router])
@@ -61,17 +63,12 @@ export default function ChatPage() {
   }
 
   if (!chatExists) {
+    // Show loading while creating new chat
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Chat Not Found</h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">The chat you're looking for doesn't exist or has been deleted.</p>
-          <button
-            onClick={() => router.push('/')}
-            className="btn btn-primary"
-          >
-            Go to Home
-          </button>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Creating new chat...</p>
         </div>
       </div>
     )

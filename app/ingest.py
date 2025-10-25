@@ -72,16 +72,20 @@ class PDFIngestor:
         
         if force_reindex:
             logger.info("Force reindex: clearing existing collection")
-            self.chroma_client.delete_collection("emini_docs")
-            self.collection = self.chroma_client.get_or_create_collection(
-                name="emini_docs",
-                metadata={"hnsw:space": "cosine"}
-            )
+            try:
+                self.chroma_client.delete_collection("documents")
+            except Exception as e:
+                logger.warning(f"Could not delete collection (may not exist): {e}")
+        
+        self.collection = self.chroma_client.get_or_create_collection(
+            name="documents",
+            metadata={"hnsw:space": "cosine"}
+        )
         
         # Check collection state before ingestion
         try:
             count = self.collection.count()
-            logger.info(f"Collection 'emini_docs' currently has {count} documents")
+            logger.info(f"Collection 'documents' currently has {count} documents")
         except Exception as e:
             logger.warning(f"Could not get collection count: {e}")
         
@@ -111,7 +115,7 @@ class PDFIngestor:
         # Check final collection state
         try:
             final_count = self.collection.count()
-            logger.info(f"Final collection 'emini_docs' has {final_count} documents")
+            logger.info(f"Final collection 'documents' has {final_count} documents")
         except Exception as e:
             logger.warning(f"Could not get final collection count: {e}")
         
@@ -372,7 +376,7 @@ class PDFIngestor:
                 })
         
         try:
-            logger.info(f"Adding {len(chunks)} chunks to ChromaDB collection 'emini_docs'")
+            logger.info(f"Adding {len(chunks)} chunks to ChromaDB collection 'documents'")
             self.collection.add(
                 embeddings=embeddings.tolist(),
                 documents=texts,

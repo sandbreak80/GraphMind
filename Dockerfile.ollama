@@ -1,0 +1,82 @@
+FROM ollama/ollama:latest
+
+# Install curl for health checks
+USER root
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# Copy the model pulling script
+COPY scripts/pull-ollama-models.sh /scripts/pull-ollama-models.sh
+RUN chmod +x /scripts/pull-ollama-models.sh
+
+# Create a startup script that runs Ollama and pulls ALL required models
+RUN echo '#!/bin/bash\n\
+# Start Ollama in the background\n\
+ollama serve &\n\
+\n\
+# Wait for Ollama to be ready\n\
+echo "⏳ Waiting for Ollama to be ready..."\n\
+until curl -s http://localhost:11434/api/tags > /dev/null 2>&1; do\n\
+    echo "   Waiting for Ollama service..."\n\
+    sleep 5\n\
+done\n\
+\n\
+echo "✅ Ollama is ready, starting model downloads..."\n\
+echo "📋 Downloading ALL models required by GraphMind system..."\n\
+\n\
+# Core models for GraphMind system\n\
+echo "📥 Pulling llama3.1:8b-instruct (default chat/research)..."\n\
+ollama pull llama3.1:8b-instruct\n\
+\n\
+echo "📥 Pulling llama3.1:latest (general questions)..."\n\
+ollama pull llama3.1:latest\n\
+\n\
+echo "📥 Pulling llama3.2:3b-instruct (fast responses)..."\n\
+ollama pull llama3.2:3b-instruct\n\
+\n\
+echo "📥 Pulling llama3.2:latest (title generation)..."\n\
+ollama pull llama3.2:latest\n\
+\n\
+# DeepSeek models for reasoning\n\
+echo "📥 Pulling deepseek-r1:7b (reasoning/tough analysis)..."\n\
+ollama pull deepseek-r1:7b\n\
+\n\
+echo "📥 Pulling deepseek-r1:14b (reasoning/tough analysis)..."\n\
+ollama pull deepseek-r1:14b\n\
+\n\
+echo "📥 Pulling deepseek-r1:latest (research model)..."\n\
+ollama pull deepseek-r1:latest\n\
+\n\
+# Qwen models for coding and analysis\n\
+echo "📥 Pulling qwen2.5:14b (long-context/deep dives)..."\n\
+ollama pull qwen2.5:14b\n\
+\n\
+echo "📥 Pulling qwen2.5:32b (long-context/deep dives)..."\n\
+ollama pull qwen2.5:32b\n\
+\n\
+echo "📥 Pulling qwen2.5-coder:7b (coding/tool logic)..."\n\
+ollama pull qwen2.5-coder:7b\n\
+\n\
+echo "📥 Pulling qwen2.5-coder:14b (coding/tool logic)..."\n\
+ollama pull qwen2.5-coder:14b\n\
+\n\
+# Additional models for specific use cases\n\
+echo "📥 Pulling phi3:mini (small model/planner/classifiers)..."\n\
+ollama pull phi3:mini\n\
+\n\
+echo "📥 Pulling qwen3-vl (vision model)..."\n\
+ollama pull qwen3-vl\n\
+\n\
+echo "📥 Pulling gemma3:12b (writing model)..."\n\
+ollama pull gemma3:12b\n\
+\n\
+echo "🎉 All GraphMind models downloaded successfully!"\n\
+echo ""\n\
+echo "📋 Available models:"\n\
+ollama list\n\
+\n\
+# Keep the container running\n\
+wait\n\
+' > /start-ollama.sh && chmod +x /start-ollama.sh
+
+# Set the entrypoint to our custom startup script (run as root to avoid user issues)
+ENTRYPOINT ["/start-ollama.sh"]

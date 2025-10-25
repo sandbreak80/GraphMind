@@ -49,7 +49,7 @@ class WebPageParser:
                 word_count_threshold=50,  # Minimum content length
                 extraction_strategy=LLMExtractionStrategy(
                     provider="ollama/llama3.1:latest",  # Use your local LLM
-                    api_base="http://host.docker.internal:11434",
+                    api_base="http://ollama:11434",
                     instruction="Extract the main content, focusing on trading, finance, and business information. Remove navigation, ads, and irrelevant content."
                 ),
                 wait_for="networkidle",

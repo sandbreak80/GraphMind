@@ -7,10 +7,10 @@ class ModelSelector:
     
     def __init__(self):
         self.models = {
-            'simple': 'llama3.2:3b',      # Fastest
-            'medium': 'llama3.1:latest',   # Balanced
-            'complex': 'qwen2.5-coder:14b', # More capable
-            'research': 'gpt-oss:20b'      # Most capable
+            'simple': 'deepseek-r1:7b',         # Fastest available
+            'medium': 'deepseek-r1:7b',          # Balanced
+            'complex': 'deepseek-r1:14b',       # More capable
+            'research': 'deepseek-r1:14b'       # Most capable
         }
         
         # Query complexity indicators

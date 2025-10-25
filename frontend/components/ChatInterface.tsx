@@ -24,7 +24,7 @@ export function ChatInterface() {
   } = useStore()
   
   const [inputValue, setInputValue] = useState('')
-  const [selectedMode, setSelectedMode] = useState<'obsidian-only' | 'rag-only' | 'web-only' | 'research'>('obsidian-only')
+  const [selectedMode, setSelectedMode] = useState<'obsidian-only' | 'rag-only' | 'web-only' | 'research'>('rag-only')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
