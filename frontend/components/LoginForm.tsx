@@ -40,6 +40,11 @@ export function LoginForm({ onLogin }: LoginFormProps) {
 
       const data = await response.json()
       onLogin(data.access_token, data.user)
+      
+      // Redirect to home page after successful login
+      if (typeof window !== 'undefined') {
+        window.location.href = '/'
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
     } finally {
