@@ -280,43 +280,48 @@ async def upload_document(file: UploadFile = File(...), current_user: dict = Dep
 @app.post("/ingest")
 async def ingest_documents(request: IngestRequest = None, current_user: dict = Depends(get_current_user)):
     """
-    Ingest all documents from /workspace/documents directory.
+    Ingest all documents from /workspace/documents directory IN BACKGROUND.
     
     Supports: PDF, Video, Word, Excel, PowerPoint, Images, Text files.
     Uses Docling with OCR fallback, chunks documents, and indexes into ChromaDB.
+    
+    Returns immediately while ingestion runs in background thread.
     """
     try:
+        import asyncio
+        from concurrent.futures import ThreadPoolExecutor
         from pathlib import Path
         import os
         
         force_reindex = request.force_reindex if request else False
-        logger.info(f"Starting batch ingestion (force_reindex={force_reindex})")
+        logger.info(f"Starting background ingestion (force_reindex={force_reindex})")
         
-        # Use the existing global ingestor instance
+        # Run ingestion in background thread to avoid blocking the event loop
+        def run_ingestion():
+            try:
+                result = ingestor.ingest_all(force_reindex=force_reindex)
+                processed = result["processed_files"]
+                chunks = result["total_chunks"]
+                failed = result.get("failed_files", 0)
+                logger.info(f"Background ingestion complete: {processed} files, {chunks} chunks, {failed} failed")
+            except Exception as e:
+                logger.error(f"Background ingestion error: {e}", exc_info=True)
+        
+        # Start ingestion in background thread (non-blocking)
+        executor = ThreadPoolExecutor(max_workers=1)
+        executor.submit(run_ingestion)
+        
+        # Return immediately - don't wait for ingestion to complete
         documents_dir = Path("/workspace/documents")
-        
-        # The PDFIngestor.ingest_all() method already processes all files from /workspace/documents
-        result = ingestor.ingest_all(force_reindex=force_reindex)
-        
-        processed = result["processed_files"]
-        chunks = result["total_chunks"]
-        failed = result.get("failed_files", 0)
-        
-        logger.info(f"Ingestion complete: {processed} files, {chunks} chunks")
-        
-        message = f"Successfully ingested {processed} file{'s' if processed != 1 else ''} ({chunks} chunks)"
-        if failed > 0:
-            message += f" - {failed} file{'s' if failed != 1 else ''} failed"
+        total_files = len(list(documents_dir.glob("*"))) if documents_dir.exists() else 0
         
         return {
-            "status": "success",
-            "processed_files": processed,
-            "total_chunks": chunks,
-            "failed_files": failed,
-            "message": message
+            "status": "started",
+            "message": f"Ingestion started in background for {total_files} files. This may take several minutes.",
+            "note": "You can continue using the system while ingestion runs in the background."
         }
     except Exception as e:
-        logger.error(f"Ingestion error: {e}", exc_info=True)
+        logger.error(f"Ingestion startup error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
