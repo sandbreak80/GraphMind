@@ -296,7 +296,7 @@ class EnhancedRAGWithObsidian:
     async def search_with_personal_knowledge(self, query: str, include_obsidian: bool = True) -> Dict[str, Any]:
         """Enhanced search combining document knowledge with personal Obsidian notes."""
         # Get document-based results
-        doc_results = self.retriever.retrieve(query, top_k=15)
+        doc_results = await self.retriever.retrieve_async(query, top_k=15)
         
         obsidian_results = []
         if include_obsidian and self.knowledge_provider:

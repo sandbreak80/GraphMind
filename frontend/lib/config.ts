@@ -25,7 +25,7 @@ export const APP_CONFIG = {
   
   // API endpoints
   api: {
-    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://rag-service:8001',
+    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://emini-rag-dev:8000',
     endpoints: {
       ask: '/ask',
       askEnhanced: '/ask-enhanced',

@@ -168,6 +168,25 @@ class UserMemory:
             logger.error(f"Failed to get user profile for {user_id}: {e}")
             return {'user_id': user_id, 'error': str(e)}
     
+    def clear_category(self, user_id: str, category: str) -> bool:
+        """Clear all insights for a specific category."""
+        try:
+            file_path = self.get_user_file(user_id, 'insights')
+            insights = self._load_json(file_path) or {}
+            
+            if category in insights:
+                insights[category] = []
+                self._save_json(file_path, insights)
+                logger.info(f"Cleared category {category} for user {user_id}")
+                return True
+            else:
+                logger.info(f"Category {category} not found for user {user_id}")
+                return True  # Category doesn't exist, consider it cleared
+                
+        except Exception as e:
+            logger.error(f"Failed to clear category {category} for {user_id}: {e}")
+            return False
+
     def get_memory_context(self, user_id: str, current_query: str) -> str:
         """Get relevant memory context for a query."""
         try:

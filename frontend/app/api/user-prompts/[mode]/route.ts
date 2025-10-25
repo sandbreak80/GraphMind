@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://rag-service:8000'
+const BACKEND_URL = process.env.BACKEND_URL || 'http://tradingai-rag:8000'
 
 export async function GET(
   request: NextRequest,
@@ -8,11 +8,13 @@ export async function GET(
 ) {
   try {
     const { mode } = params
+    const authHeader = request.headers.get('authorization')
 
     const response = await fetch(`${BACKEND_URL}/user-prompts/${mode}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': authHeader || '',
       },
     })
 
@@ -38,11 +40,13 @@ export async function PUT(
   try {
     const { mode } = params
     const body = await request.json()
+    const authHeader = request.headers.get('authorization')
 
     const response = await fetch(`${BACKEND_URL}/user-prompts/${mode}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': authHeader || '',
       },
       body: JSON.stringify(body),
     })
@@ -68,11 +72,13 @@ export async function DELETE(
 ) {
   try {
     const { mode } = params
+    const authHeader = request.headers.get('authorization')
 
-    const response = await fetch(`${BACKEND_URL}/user-prompts/${mode}/clear`, {
+    const response = await fetch(`${BACKEND_URL}/user-prompts/${mode}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': authHeader || '',
       },
     })
 

@@ -105,6 +105,10 @@ interface AppState {
   setProcessing: (processing: boolean) => void
   retryLastMessage: () => void
   
+  // URL navigation
+  navigateToChat: (chatId: string) => void
+  getChatUrl: (chatId: string) => string
+  
   // Model switching
   switchModel: (model: string) => void
   getCurrentModel: () => string
@@ -510,7 +514,35 @@ export const useStore = create<AppState>()(
       },
       
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
-      setTheme: (theme) => set({ theme }),
+      setTheme: (theme) => {
+        set({ theme })
+        // Apply theme to DOM
+        if (typeof window !== 'undefined') {
+          const root = window.document.documentElement
+          root.classList.remove('light', 'dark')
+          root.classList.add(theme)
+          // Also set data attribute for better CSS targeting
+          root.setAttribute('data-theme', theme)
+          // Store in localStorage for persistence
+          localStorage.setItem('theme', theme)
+        }
+      },
+      
+      // URL navigation
+      navigateToChat: (chatId) => {
+        // Update URL without page reload
+        if (typeof window !== 'undefined') {
+          window.history.pushState({}, '', `/chat/${chatId}`)
+        }
+        get().setCurrentChat(chatId)
+      },
+      
+      getChatUrl: (chatId) => {
+        if (typeof window !== 'undefined') {
+          return `${window.location.origin}/chat/${chatId}`
+        }
+        return `/chat/${chatId}`
+      },
       
       initializeApp: async () => {
         // Load models from Ollama
@@ -527,12 +559,24 @@ export const useStore = create<AppState>()(
         }
         
         // Apply theme
-        const theme = get().settings.theme
-        if (theme === 'system') {
-          const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-          set({ theme: systemTheme })
+        const settingsTheme = get().settings.theme
+        let actualTheme: 'light' | 'dark' = 'light'
+        if (settingsTheme === 'system') {
+          actualTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
         } else {
-          set({ theme })
+          actualTheme = settingsTheme
+        }
+        set({ theme: actualTheme })
+        
+        // Apply theme to DOM
+        if (typeof window !== 'undefined') {
+          const root = window.document.documentElement
+          root.classList.remove('light', 'dark')
+          root.classList.add(actualTheme)
+          // Also set data attribute for better CSS targeting
+          root.setAttribute('data-theme', actualTheme)
+          // Store in localStorage for persistence
+          localStorage.setItem('theme', actualTheme)
         }
       }
     }),

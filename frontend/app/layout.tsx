@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
 import { Toaster } from 'react-hot-toast'
+import { ThemeScript } from '@/components/ThemeScript'
 import 'katex/dist/katex.min.css'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -19,6 +20,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full">
+      <head>
+        <ThemeScript />
+      </head>
       <body className={`${inter.className} h-full bg-gray-50 dark:bg-gray-900`}>
         <Providers>
           {children}

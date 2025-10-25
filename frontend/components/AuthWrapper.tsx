@@ -4,12 +4,15 @@ import { useEffect, useState } from 'react'
 import { useStore } from '@/lib/store'
 import { LoginForm } from './LoginForm'
 import { ChatInterface } from './ChatInterface'
+import { EnhancedChatInterface } from './EnhancedChatInterface'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
+import { usePathname } from 'next/navigation'
 
-export function AuthWrapper() {
+export function AuthWrapper({ children }: { children?: React.ReactNode }) {
   const { isAuthenticated, checkAuth, login, logout } = useStore()
   const [isChecking, setIsChecking] = useState(true)
+  const pathname = usePathname()
 
   useEffect(() => {
     // Check if user is already authenticated
@@ -40,13 +43,19 @@ export function AuthWrapper() {
     return <LoginForm onLogin={handleLogin} />
   }
 
-  return (
-    <div className="h-screen flex bg-gray-50 dark:bg-gray-900">
-      <Sidebar />
-      <div className="flex-1 flex flex-col">
-        <Header onLogout={handleLogout} />
-        <ChatInterface />
-      </div>
-    </div>
-  )
+  // If children are provided (like for specific pages), render them
+  if (children) {
+    return <>{children}</>
+  }
+
+        // Default chat interface for home page
+        return (
+          <div className="h-screen flex bg-gray-50 dark:bg-gray-900">
+            <Sidebar />
+            <div className="flex-1 flex flex-col">
+              <Header onLogout={handleLogout} />
+              <EnhancedChatInterface />
+            </div>
+          </div>
+        )
 }

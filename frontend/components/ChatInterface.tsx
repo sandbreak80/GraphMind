@@ -137,10 +137,24 @@ export function ChatInterface() {
       // Update response time
       updateResponseTime(assistantMessageId, responseTime)
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending message:', error)
+      
+      let errorMessage = 'Sorry, I encountered an error. Please try again.'
+      
+      // Handle specific error types
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        errorMessage = 'Your session has expired. Please log in again.'
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Server error. Please try again in a moment.'
+      } else if (error.code === 'ECONNABORTED') {
+        errorMessage = 'Request timed out. Please try again.'
+      } else if (error.message?.includes('Network Error')) {
+        errorMessage = 'Network error. Please check your connection.'
+      }
+      
       updateMessage(assistantMessageId, {
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: errorMessage,
         isProcessing: false
       })
     } finally {

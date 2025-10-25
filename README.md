@@ -1,6 +1,12 @@
-# EminiPlayer - Advanced Trading RAG System
+# TradingAI Research Platform v2.0
 
 A comprehensive Retrieval-Augmented Generation (RAG) system designed for trading and financial analysis, combining document knowledge, web search, and personal notes to provide intelligent responses.
+
+## 🎯 Current Status: Production Ready v2.0
+
+**Status**: ✅ Production Ready  
+**Version**: 2.0.0  
+**Last Updated**: October 25, 2024
 
 ## 🚀 Features
 
@@ -12,11 +18,13 @@ A comprehensive Retrieval-Augmented Generation (RAG) system designed for trading
 
 ### Advanced Capabilities
 - **User Memory System**: Persistent storage of user preferences, chat history, and insights
+- **URL-Based Chat Routing**: Shareable chat links (`/chat/[id]`)
 - **Model Switching**: Change AI models mid-conversation
 - **Smart Chat Naming**: AI-powered chat title generation
 - **Response Time Tracking**: Monitor and display response times
 - **Export Functionality**: Export chats in Markdown format
 - **Customizable System Prompts**: User-editable system prompts for each mode
+- **Share Functionality**: Copy and share direct links to specific chats
 
 ### Technical Features
 - **Docker-based Deployment**: Containerized services with Docker Compose
@@ -302,19 +310,30 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🔄 Changelog
 
-### Recent Updates
-- ✅ Fixed data source exclusivity issues
-- ✅ Implemented comprehensive test suite
-- ✅ Added user memory system
-- ✅ Created extensive documentation
-- ✅ Set up QA automation
+### Recent Updates (v2.0)
+- ✅ **URL-Based Chat Routing**: Individual chat URLs with shareable links
+- ✅ **Enhanced UI/UX**: Clickable title, share functionality, improved navigation
+- ✅ **System Prompt Management**: User-editable prompts with version control
+- ✅ **Memory Management**: User memory interface with category management
+- ✅ **Production Deployment**: Full Docker containerization with monitoring
+- ✅ **Performance Optimization**: Redis caching, response time tracking
+- ✅ **Source Attribution**: Proper document type display and citations
+- ✅ **Authentication Flow**: Improved session management and error handling
+- ✅ **Hybrid Retrieval**: BM25 + semantic search + cross-encoder reranking
+- ✅ **Advanced Search**: Multi-stage retrieval with performance optimization
 
-### Upcoming Features
-- 🔄 Model switching mid-chat
-- 🔄 Chat export functionality
-- 🔄 Response time measurement
-- 🔄 Smart chat naming
-- 🔄 System prompt customization
+### Completed Features
+- ✅ Model switching mid-chat
+- ✅ Chat export functionality  
+- ✅ Response time measurement
+- ✅ Smart chat naming
+- ✅ System prompt customization
+- ✅ User memory system
+- ✅ URL-based navigation
+- ✅ Share functionality
+- ✅ Hybrid retrieval system (BM25 + semantic + reranking)
+- ✅ Cross-encoder reranking for superior relevance
+- ✅ Performance optimization with caching and GPU acceleration
 
 ---
 

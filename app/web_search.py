@@ -138,10 +138,10 @@ class EnhancedRAGWithWebSearch:
         self.web_search = web_search_provider
         self.trading_news = TradingNewsSearch(web_search_provider) if web_search_provider else None
     
-    def search_with_web_context(self, query: str, include_web: bool = True) -> Dict[str, Any]:
+    async def search_with_web_context(self, query: str, include_web: bool = True) -> Dict[str, Any]:
         """Enhanced search with web context for real-time information."""
         # Get document-based results
-        doc_results = self.retriever.retrieve(query, top_k=10)
+        doc_results = await self.retriever.retrieve_async(query, top_k=10)
         
         web_results = []
         if include_web and self.trading_news:

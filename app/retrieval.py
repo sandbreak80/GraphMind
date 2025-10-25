@@ -102,10 +102,9 @@ class HybridRetriever:
                  bm25_top_k: Optional[int] = None, embedding_top_k: Optional[int] = None, 
                  rerank_top_k: Optional[int] = None) -> List[Dict[str, Any]]:
         """
-        Hybrid retrieval pipeline:
-        1. BM25 prefilter
-        2. Embedding-based KNN
-        3. Rerank with cross-encoder
+        Hybrid retrieval pipeline with parallel processing:
+        1. BM25 prefilter + Embedding-based KNN (parallel)
+        2. Rerank with cross-encoder
         
         Args:
             query: Search query
@@ -115,32 +114,36 @@ class HybridRetriever:
             embedding_top_k: Number of embedding results (overrides config)
             rerank_top_k: Number of final reranked results (overrides top_k)
         """
-        # Use provided parameters or fall back to config defaults
-        bm25_k = bm25_top_k if bm25_top_k is not None else BM25_TOP_K
-        embedding_k = embedding_top_k if embedding_top_k is not None else EMBEDDING_TOP_K
-        final_k = rerank_top_k if rerank_top_k is not None else top_k
-        
-        # Stage 1: BM25 prefilter
-        bm25_results = self._bm25_search(query, top_k=bm25_k)
-        logger.info(f"BM25 retrieved: {len(bm25_results)} results (top_k={bm25_k})")
-        
-        # Stage 2: Embedding search
-        embedding_results = self._embedding_search(query, top_k=embedding_k)
-        logger.info(f"Embedding retrieved: {len(embedding_results)} results (top_k={embedding_k})")
-        
-        # Combine and deduplicate
-        combined = self._merge_results(bm25_results, embedding_results)
-        logger.info(f"Combined unique results: {len(combined)}")
-        
-        # Stage 3: Rerank
-        reranked = self._rerank(query, combined, top_k=final_k)
-        logger.info(f"Final reranked results: {len(reranked)} (top_k={final_k})")
-        
-        # Optional: Compute metrics for monitoring
-        if compute_metrics and len(reranked) > 0:
-            self._compute_and_log_metrics(query, reranked)
-        
-        return reranked
+        # Use async method internally for parallel processing
+        import asyncio
+        try:
+            # Try to get the current event loop
+            loop = asyncio.get_running_loop()
+            # If we're in an event loop, we need to run in a new thread
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(
+                    asyncio.run, 
+                    self.retrieve_async(
+                        query, 
+                        top_k=top_k,
+                        compute_metrics=compute_metrics,
+                        bm25_top_k=bm25_top_k,
+                        embedding_top_k=embedding_top_k,
+                        rerank_top_k=rerank_top_k
+                    )
+                )
+                return future.result()
+        except RuntimeError:
+            # No event loop running, safe to use asyncio.run
+            return asyncio.run(self.retrieve_async(
+                query, 
+                top_k=top_k,
+                compute_metrics=compute_metrics,
+                bm25_top_k=bm25_top_k,
+                embedding_top_k=embedding_top_k,
+                rerank_top_k=rerank_top_k
+            ))
     
     async def retrieve_async(self, query: str, top_k: int = RERANK_TOP_K, compute_metrics: bool = False, 
                             bm25_top_k: Optional[int] = None, embedding_top_k: Optional[int] = None, 
@@ -342,14 +345,38 @@ class HybridRetriever:
                      model: Optional[str] = None, bm25_top_k: Optional[int] = None, 
                      embedding_top_k: Optional[int] = None, rerank_top_k: Optional[int] = None) -> Dict[str, Any]:
         """Answer query using retrieved context and Ollama."""
-        # Retrieve relevant documents with custom settings
-        results = self.retrieve(
-            query, 
-            top_k=top_k,
-            bm25_top_k=bm25_top_k,
-            embedding_top_k=embedding_top_k,
-            rerank_top_k=rerank_top_k
-        )
+        # Use async method internally for parallel processing
+        import asyncio
+        try:
+            # Try to get the current event loop
+            loop = asyncio.get_running_loop()
+            # If we're in an event loop, we need to run in a new thread
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(
+                    asyncio.run, 
+                    self.answer_query_async(
+                        query, 
+                        top_k=top_k,
+                        bm25_top_k=bm25_top_k,
+                        embedding_top_k=embedding_top_k,
+                        rerank_top_k=rerank_top_k,
+                        conversation_history=conversation_history,
+                        model=model
+                    )
+                )
+                return future.result()
+        except RuntimeError:
+            # No event loop running, safe to use asyncio.run
+            return asyncio.run(self.answer_query_async(
+                query, 
+                top_k=top_k,
+                bm25_top_k=bm25_top_k,
+                embedding_top_k=embedding_top_k,
+                rerank_top_k=rerank_top_k,
+                conversation_history=conversation_history,
+                model=model
+            ))
     
     async def answer_query_async(self, query: str, top_k: int = 5, conversation_history: Optional[List[Dict[str, str]]] = None, 
                                 model: Optional[str] = None, bm25_top_k: Optional[int] = None, 
@@ -367,7 +394,8 @@ class HybridRetriever:
         if not results:
             return {
                 "answer": "No relevant documents found.",
-                "citations": []
+                "citations": [],
+                "sources": []  # Frontend compatibility
             }
         
         # Build context
@@ -385,21 +413,37 @@ class HybridRetriever:
         # Generate answer with Ollama
         answer = self._generate_answer(query, context, conversation_history, model)
         
-        # Build citations
-        citations = [
-            Citation(
-                text=result['text'][:200] + "...",
+        # Build citations with proper source formatting
+        citations = []
+        for result in results:
+            # Get document type for better source display
+            doc_type = result['metadata'].get('doc_type', 'Document')
+            file_name = result['metadata'].get('file_name', 'Unknown')
+            
+            # Format source based on document type
+            if doc_type == 'video_transcript':
+                source_display = f"Video: {file_name}"
+            elif doc_type == 'pdf':
+                source_display = f"PDF: {file_name}"
+            elif doc_type == 'text_document':
+                source_display = f"Document: {file_name}"
+            elif doc_type == 'llm_processed':
+                source_display = f"AI Processed: {file_name}"
+            else:
+                source_display = f"{doc_type.title()}: {file_name}"
+            
+            citations.append(Citation(
+                text=result['text'][:500] + "..." if len(result['text']) > 500 else result['text'],
                 doc_id=result['metadata'].get('doc_id') or result['metadata'].get('file_name', 'unknown'),
                 page=result['metadata'].get('page'),
-                section=result['metadata'].get('section') or result['metadata'].get('doc_type', 'unknown'),
+                section=source_display,
                 score=result['rerank_score']
-            )
-            for result in results
-        ]
+            ))
         
         return {
             "answer": answer,
-            "citations": citations
+            "citations": citations,
+            "sources": citations  # Frontend compatibility
         }
     
     async def answer_query_async(self, query: str, top_k: int = 5, conversation_history: Optional[List[Dict[str, str]]] = None, 
@@ -418,7 +462,8 @@ class HybridRetriever:
         if not results:
             return {
                 "answer": "No relevant documents found.",
-                "citations": []
+                "citations": [],
+                "sources": []  # Frontend compatibility
             }
         
         # Build context
@@ -436,21 +481,37 @@ class HybridRetriever:
         # Generate answer with Ollama
         answer = self._generate_answer(query, context, conversation_history, model)
         
-        # Build citations
-        citations = [
-            Citation(
-                text=result['text'][:200] + "...",
+        # Build citations with proper source formatting
+        citations = []
+        for result in results:
+            # Get document type for better source display
+            doc_type = result['metadata'].get('doc_type', 'Document')
+            file_name = result['metadata'].get('file_name', 'Unknown')
+            
+            # Format source based on document type
+            if doc_type == 'video_transcript':
+                source_display = f"Video: {file_name}"
+            elif doc_type == 'pdf':
+                source_display = f"PDF: {file_name}"
+            elif doc_type == 'text_document':
+                source_display = f"Document: {file_name}"
+            elif doc_type == 'llm_processed':
+                source_display = f"AI Processed: {file_name}"
+            else:
+                source_display = f"{doc_type.title()}: {file_name}"
+            
+            citations.append(Citation(
+                text=result['text'][:500] + "..." if len(result['text']) > 500 else result['text'],
                 doc_id=result['metadata'].get('doc_id') or result['metadata'].get('file_name', 'unknown'),
                 page=result['metadata'].get('page'),
-                section=result['metadata'].get('section') or result['metadata'].get('doc_type', 'unknown'),
+                section=source_display,
                 score=result['rerank_score']
-            )
-            for result in results
-        ]
+            ))
         
         return {
             "answer": answer,
-            "citations": citations
+            "citations": citations,
+            "sources": citations  # Frontend compatibility
         }
     
     def _generate_answer(self, query: str, context: str, conversation_history: Optional[List[Dict[str, str]]] = None, 

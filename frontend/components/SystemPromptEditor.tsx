@@ -27,8 +27,8 @@ export function SystemPromptEditor({ mode, isOpen, onClose }: SystemPromptEditor
       setLoading(true)
       setError('')
       
-      // Load system prompt
-      const response = await fetch(`/api/system-prompts/${mode}`, {
+      // Load current active prompt (custom or default) for editing
+      const response = await fetch(`/api/user-prompts/${mode}`, {
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
@@ -36,7 +36,14 @@ export function SystemPromptEditor({ mode, isOpen, onClose }: SystemPromptEditor
       
       if (response.ok) {
         const data = await response.json()
-        setPrompt(data.prompt || '')
+        // Handle both custom prompt object and default prompt string
+        if (typeof data.prompt === 'string') {
+          setPrompt(data.prompt)
+        } else if (data.prompt && typeof data.prompt === 'object' && data.prompt.prompt) {
+          setPrompt(data.prompt.prompt)
+        } else {
+          setPrompt('')
+        }
       } else {
         setError('Failed to load prompt')
       }

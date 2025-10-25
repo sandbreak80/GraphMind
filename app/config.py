@@ -5,7 +5,7 @@ from pathlib import Path
 # Paths - handle both container and host environments
 if Path("/workspace").exists():
     # Running in container
-    PDF_DIR = Path("/workspace/pdfs")
+    PDF_DIR = Path("/workspace/rag_docs_zone")  # Use rag_docs_zone which has documents
     CHROMA_DIR = Path("/workspace/chroma_db")
     OUTPUT_DIR = Path("/workspace/outputs")
 else:

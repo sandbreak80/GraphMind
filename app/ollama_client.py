@@ -22,7 +22,7 @@ class OllamaClient:
         prompt: str,
         model: Optional[str] = None,
         temperature: float = 0.1,
-        max_tokens: int = 4000,
+        max_tokens: int = 8000,
         top_k: Optional[int] = None,
         timeout: int = 180
     ) -> str:

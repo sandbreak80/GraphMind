@@ -11,6 +11,10 @@ python-multipart                  # Handle multipart form data
 python-jose[cryptography]>=3.3.0  # JWT token handling and encryption
 python-magic                      # File type detection
 
+# Caching & Performance
+redis>=5.0                        # Redis client for caching
+aioredis>=2.0                     # Async Redis client
+
 # Document Processing
 docling>=1.8                      # Advanced PDF processing and parsing
 ocrmypdf>=15.4                    # OCR for PDF files
