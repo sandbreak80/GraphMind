@@ -1514,45 +1514,60 @@ async def list_documents(current_user: dict = Depends(get_current_user)):
 
 @app.delete("/documents/{doc_id}")
 async def delete_document(doc_id: str, current_user: dict = Depends(get_current_user)):
-    """Delete a document and all its chunks from ChromaDB."""
+    """Delete a document from filesystem and all its chunks from ChromaDB."""
     try:
         import chromadb
         import os
+        from pathlib import Path
         
-        chroma_url = os.getenv("CHROMA_URL", "http://chromadb:8000")
-        chroma_client = chromadb.HttpClient(
-            host=chroma_url.split("://")[1].split(":")[0],
-            port=int(chroma_url.split(":")[-1])
-        )
+        documents_dir = Path("/workspace/documents")
+        file_path = documents_dir / doc_id
         
+        chunks_deleted = 0
+        file_deleted = False
+        
+        # Delete from ChromaDB if exists
         try:
+            chroma_url = os.getenv("CHROMA_URL", "http://chromadb:8000")
+            chroma_client = chromadb.HttpClient(
+                host=chroma_url.split("://")[1].split(":")[0],
+                port=int(chroma_url.split(":")[-1])
+            )
+            
             collection = chroma_client.get_collection("documents")
             
-            # Get all chunk IDs for this document
+            # Get all chunk IDs for this document (match by filename)
             results = collection.get(
-                where={"doc_id": doc_id},
+                where={"filename": doc_id},
                 include=["metadatas"]
             )
             
-            if not results["ids"]:
-                raise HTTPException(status_code=404, detail="Document not found")
-            
-            # Delete all chunks
-            collection.delete(ids=results["ids"])
-            
-            logger.info(f"Deleted document {doc_id} ({len(results['ids'])} chunks)")
-            return JSONResponse(content={
-                "success": True,
-                "message": f"Deleted {len(results['ids'])} chunks",
-                "chunks_deleted": len(results["ids"])
-            })
-            
-        except HTTPException:
-            raise
+            if results["ids"]:
+                # Delete all chunks
+                collection.delete(ids=results["ids"])
+                chunks_deleted = len(results["ids"])
+                logger.info(f"Deleted {chunks_deleted} chunks from ChromaDB for {doc_id}")
+                
         except Exception as e:
-            if "does not exist" in str(e):
-                raise HTTPException(status_code=404, detail="Collection does not exist")
-            raise
+            logger.warning(f"Could not delete from ChromaDB (may not be ingested): {e}")
+        
+        # Delete physical file
+        if file_path.exists():
+            file_path.unlink()
+            file_deleted = True
+            logger.info(f"Deleted file: {file_path}")
+        else:
+            logger.warning(f"File not found: {file_path}")
+        
+        if not file_deleted and chunks_deleted == 0:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        return JSONResponse(content={
+            "success": True,
+            "message": f"Deleted document: {doc_id}",
+            "file_deleted": file_deleted,
+            "chunks_deleted": chunks_deleted
+        })
             
     except HTTPException:
         raise
