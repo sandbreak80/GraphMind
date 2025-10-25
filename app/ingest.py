@@ -587,6 +587,9 @@ class PDFIngestor:
         
         # Enhance each chunk
         for chunk in chunks:
+            # Add filename for easy identification
+            chunk["filename"] = file_path.name
+            
             # Add document type
             chunk["doc_type"] = doc_type
             chunk["doc_category"] = doc_category
