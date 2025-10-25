@@ -289,14 +289,22 @@ async def ingest_documents(request: IngestRequest = None, current_user: dict = D
         # The PDFIngestor.ingest_all() method already processes all files from /workspace/documents
         result = ingestor.ingest_all(force_reindex=force_reindex)
         
-        logger.info(f"Ingestion complete: {result['processed_files']} files, {result['total_chunks']} chunks")
+        processed = result["processed_files"]
+        chunks = result["total_chunks"]
+        failed = result.get("failed_files", 0)
+        
+        logger.info(f"Ingestion complete: {processed} files, {chunks} chunks")
+        
+        message = f"Successfully ingested {processed} file{'s' if processed != 1 else ''} ({chunks} chunks)"
+        if failed > 0:
+            message += f" - {failed} file{'s' if failed != 1 else ''} failed"
         
         return {
             "status": "success",
-            "processed_files": result["processed_files"],
-            "total_chunks": result["total_chunks"],
-            "failed_files": result.get("failed_files", []),
-            "message": result["message"]
+            "processed_files": processed,
+            "total_chunks": chunks,
+            "failed_files": failed,
+            "message": message
         }
     except Exception as e:
         logger.error(f"Ingestion error: {e}", exc_info=True)
