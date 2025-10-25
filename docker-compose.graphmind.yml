@@ -25,6 +25,7 @@ services:
       - ./documents:/workspace/documents
       - ./memory:/app/memory
       - ./config:/app/config
+      - ./data:/workspace/data  # User settings and app data persistence
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./obsidian_vault:/app/obsidian_vault
     depends_on:
