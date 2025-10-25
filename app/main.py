@@ -461,7 +461,7 @@ async def ask_question(request: AskRequest, current_user: dict = Depends(get_cur
                 for r in doc_results:
                     # Get document type for better source display
                     doc_type = r['metadata'].get('doc_type', 'Document')
-                    file_name = r['metadata'].get('file_name', 'Unknown')
+                    file_name = r['metadata'].get('filename') or r['metadata'].get('file_name', 'Unknown')
                     
                     # Format source based on document type
                     if doc_type == 'video_transcript':
@@ -477,7 +477,7 @@ async def ask_question(request: AskRequest, current_user: dict = Depends(get_cur
                     
                     citations.append(Citation(
                         text=r['text'][:200] + "...",
-                        doc_id=r['metadata'].get('doc_id') or r['metadata'].get('file_name', 'unknown'),
+                        doc_id=r['metadata'].get('doc_id') or r['metadata'].get('filename') or r['metadata'].get('file_name', 'unknown'),
                         page=r['metadata'].get('page'),
                         section=source_display,
                         score=r['rerank_score']
@@ -775,7 +775,7 @@ async def ask_research_question(request: AskRequest, current_user: dict = Depend
             doc_citations = [
                 Citation(
                     text=r['text'][:200] + "...",
-                    doc_id=r['metadata'].get('doc_id') or r['metadata'].get('file_name', 'unknown'),
+                    doc_id=r['metadata'].get('doc_id') or r['metadata'].get('filename') or r['metadata'].get('file_name', 'unknown'),
                     page=r['metadata'].get('page'),
                     section=r['metadata'].get('section') or r['metadata'].get('doc_type', 'unknown'),
                     score=r['rerank_score']
@@ -1191,7 +1191,7 @@ async def ask_obsidian_question(request: AskRequest, current_user: dict = Depend
             obsidian_citations = [
                 Citation(
                     text=r['text'][:200] + "...",
-                    doc_id=r['metadata'].get('doc_id') or r['metadata'].get('file_name', 'unknown'),
+                    doc_id=r['metadata'].get('doc_id') or r['metadata'].get('filename') or r['metadata'].get('file_name', 'unknown'),
                     page=None,
                     section=r['metadata'].get('title', 'Obsidian Note'),
                     score=r['score']
