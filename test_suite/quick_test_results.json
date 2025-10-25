@@ -1,0 +1,392 @@
+{
+  "summary": {
+    "total_tests": 24,
+    "successful_tests": 24,
+    "failed_tests": 0,
+    "success_rate": 100.0,
+    "average_response_time": 6.441620985666911,
+    "start_time": "2025-10-23T22:01:29.170328",
+    "end_time": "2025-10-23T22:04:03.773327",
+    "duration_seconds": 154.602999
+  },
+  "model_performance": {
+    "llama3.2:3b": {
+      "total": 8,
+      "successful": 8,
+      "failed": 0,
+      "avg_response_time": 3.5863949954509735,
+      "cached_count": 0
+    },
+    "llama3.1:latest": {
+      "total": 8,
+      "successful": 8,
+      "failed": 0,
+      "avg_response_time": 5.909058064222336,
+      "cached_count": 0
+    },
+    "qwen2.5-coder:14b": {
+      "total": 4,
+      "successful": 4,
+      "failed": 0,
+      "avg_response_time": 10.426839172840118,
+      "cached_count": 0
+    },
+    "deepseek-r1:latest": {
+      "total": 4,
+      "successful": 4,
+      "failed": 0,
+      "avg_response_time": 9.231980621814728,
+      "cached_count": 0
+    }
+  },
+  "mode_performance": {
+    "qa": {
+      "total": 6,
+      "successful": 6,
+      "failed": 0,
+      "avg_response_time": 6.676784157752991,
+      "cached_count": 0
+    },
+    "spec": {
+      "total": 6,
+      "successful": 6,
+      "failed": 0,
+      "avg_response_time": 6.876835227012634,
+      "cached_count": 0
+    },
+    "web": {
+      "total": 6,
+      "successful": 6,
+      "failed": 0,
+      "avg_response_time": 5.664334813753764,
+      "cached_count": 0
+    },
+    "research": {
+      "total": 6,
+      "successful": 6,
+      "failed": 0,
+      "avg_response_time": 6.548529744148254,
+      "cached_count": 0
+    }
+  },
+  "complexity_performance": {
+    "simple": {
+      "total": 8,
+      "successful": 8,
+      "failed": 0,
+      "avg_response_time": 3.5863949954509735,
+      "cached_count": 0
+    },
+    "medium": {
+      "total": 8,
+      "successful": 8,
+      "failed": 0,
+      "avg_response_time": 5.909058064222336,
+      "cached_count": 0
+    },
+    "complex": {
+      "total": 4,
+      "successful": 4,
+      "failed": 0,
+      "avg_response_time": 10.426839172840118,
+      "cached_count": 0
+    },
+    "research": {
+      "total": 4,
+      "successful": 4,
+      "failed": 0,
+      "avg_response_time": 9.231980621814728,
+      "cached_count": 0
+    }
+  },
+  "detailed_results": [
+    {
+      "prompt_id": 1,
+      "mode": "qa",
+      "model": "llama3.2:3b",
+      "complexity": "simple",
+      "success": true,
+      "response_time": 3.6718339920043945,
+      "answer_length": 1541,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 1,
+      "mode": "spec",
+      "model": "llama3.2:3b",
+      "complexity": "simple",
+      "success": true,
+      "response_time": 3.480029821395874,
+      "answer_length": 1367,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 1,
+      "mode": "web",
+      "model": "llama3.2:3b",
+      "complexity": "simple",
+      "success": true,
+      "response_time": 4.236870288848877,
+      "answer_length": 1768,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 1,
+      "mode": "research",
+      "model": "llama3.2:3b",
+      "complexity": "simple",
+      "success": true,
+      "response_time": 3.403944492340088,
+      "answer_length": 1431,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 2,
+      "mode": "qa",
+      "model": "llama3.2:3b",
+      "complexity": "simple",
+      "success": true,
+      "response_time": 3.659799814224243,
+      "answer_length": 1474,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 2,
+      "mode": "spec",
+      "model": "llama3.2:3b",
+      "complexity": "simple",
+      "success": true,
+      "response_time": 3.504542827606201,
+      "answer_length": 1398,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 2,
+      "mode": "web",
+      "model": "llama3.2:3b",
+      "complexity": "simple",
+      "success": true,
+      "response_time": 3.5782082080841064,
+      "answer_length": 1350,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 2,
+      "mode": "research",
+      "model": "llama3.2:3b",
+      "complexity": "simple",
+      "success": true,
+      "response_time": 3.155930519104004,
+      "answer_length": 1235,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 3,
+      "mode": "qa",
+      "model": "llama3.1:latest",
+      "complexity": "medium",
+      "success": true,
+      "response_time": 4.166277170181274,
+      "answer_length": 1555,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 3,
+      "mode": "spec",
+      "model": "llama3.1:latest",
+      "complexity": "medium",
+      "success": true,
+      "response_time": 5.8097779750823975,
+      "answer_length": 2127,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 3,
+      "mode": "web",
+      "model": "llama3.1:latest",
+      "complexity": "medium",
+      "success": true,
+      "response_time": 4.280269622802734,
+      "answer_length": 1621,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 3,
+      "mode": "research",
+      "model": "llama3.1:latest",
+      "complexity": "medium",
+      "success": true,
+      "response_time": 4.2307233810424805,
+      "answer_length": 1668,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 4,
+      "mode": "qa",
+      "model": "llama3.1:latest",
+      "complexity": "medium",
+      "success": true,
+      "response_time": 5.626667022705078,
+      "answer_length": 900,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 4,
+      "mode": "spec",
+      "model": "llama3.1:latest",
+      "complexity": "medium",
+      "success": true,
+      "response_time": 9.658362627029419,
+      "answer_length": 2489,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 4,
+      "mode": "web",
+      "model": "llama3.1:latest",
+      "complexity": "medium",
+      "success": true,
+      "response_time": 3.4448323249816895,
+      "answer_length": 1044,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 4,
+      "mode": "research",
+      "model": "llama3.1:latest",
+      "complexity": "medium",
+      "success": true,
+      "response_time": 10.055554389953613,
+      "answer_length": 2671,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 5,
+      "mode": "qa",
+      "model": "qwen2.5-coder:14b",
+      "complexity": "complex",
+      "success": true,
+      "response_time": 13.700465679168701,
+      "answer_length": 1102,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 5,
+      "mode": "spec",
+      "model": "qwen2.5-coder:14b",
+      "complexity": "complex",
+      "success": true,
+      "response_time": 9.585863828659058,
+      "answer_length": 838,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 5,
+      "mode": "web",
+      "model": "qwen2.5-coder:14b",
+      "complexity": "complex",
+      "success": true,
+      "response_time": 9.217053174972534,
+      "answer_length": 3433,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 5,
+      "mode": "research",
+      "model": "qwen2.5-coder:14b",
+      "complexity": "complex",
+      "success": true,
+      "response_time": 9.20397400856018,
+      "answer_length": 116,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 6,
+      "mode": "qa",
+      "model": "deepseek-r1:latest",
+      "complexity": "research",
+      "success": true,
+      "response_time": 9.235661268234253,
+      "answer_length": 2963,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 6,
+      "mode": "spec",
+      "model": "deepseek-r1:latest",
+      "complexity": "research",
+      "success": true,
+      "response_time": 9.222434282302856,
+      "answer_length": 3441,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 6,
+      "mode": "web",
+      "model": "deepseek-r1:latest",
+      "complexity": "research",
+      "success": true,
+      "response_time": 9.228775262832642,
+      "answer_length": 3085,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    },
+    {
+      "prompt_id": 6,
+      "mode": "research",
+      "model": "deepseek-r1:latest",
+      "complexity": "research",
+      "success": true,
+      "response_time": 9.24105167388916,
+      "answer_length": 3344,
+      "citations": 0,
+      "error_message": null,
+      "cached": false
+    }
+  ]
+}

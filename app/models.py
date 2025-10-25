@@ -1,6 +1,6 @@
 """Pydantic models for API."""
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_serializer
 
 
 class IngestRequest(BaseModel):
@@ -47,6 +47,8 @@ class AskRequest(BaseModel):
     # Web Search Settings
     web_search_results: Optional[int] = Field(None, description="Number of web search results")
     web_pages_to_parse: Optional[int] = Field(None, description="Number of web pages to parse")
+    # Testing Settings
+    disable_model_override: Optional[bool] = Field(False, description="Disable automatic model selection for testing")
 
 
 class AskResponse(BaseModel):
@@ -54,11 +56,18 @@ class AskResponse(BaseModel):
     query: str
     answer: str
     citations: List[Citation]
+    sources: List[Citation] = Field(default_factory=list)  # Always include sources for frontend compatibility
     mode: str
     spec_file: Optional[str] = None
     web_enabled: Optional[bool] = None
     total_sources: Optional[int] = None
     search_metadata: Optional[Dict[str, Any]] = None
+    
+    def __init__(self, **data):
+        super().__init__(**data)
+        # If sources is not provided or is empty, use citations
+        if not self.sources:
+            self.sources = self.citations
 
 
 class StrategySpec(BaseModel):

@@ -23,7 +23,8 @@ export function Header({ onLogout }: HeaderProps) {
     theme, 
     setTheme,
     settings,
-    user
+    user,
+    createChat
   } = useStore()
   const [showSettings, setShowSettings] = useState(false)
 
@@ -31,6 +32,14 @@ export function Header({ onLogout }: HeaderProps) {
     const newTheme = theme === 'light' ? 'dark' : 'light'
     setTheme(newTheme)
     useStore.getState().updateSettings({ theme: newTheme })
+  }
+
+  const handleTitleClick = () => {
+    const newChatId = createChat('New Chat')
+    // Navigate to the new chat URL
+    if (typeof window !== 'undefined') {
+      window.location.href = `/chat/${newChatId}`
+    }
   }
 
   return (
@@ -46,9 +55,13 @@ export function Header({ onLogout }: HeaderProps) {
             </button>
             
             <div className="flex items-center space-x-2">
-              <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <button
+                onClick={handleTitleClick}
+                className="text-xl font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                title="Click to start a new chat"
+              >
                 TradingAI Research Platform
-              </h1>
+              </button>
               <div className="flex items-center space-x-1 text-xs text-gray-500 dark:text-gray-400">
                 <div className={`w-2 h-2 rounded-full ${settings.enableRAG ? 'bg-green-500' : 'bg-gray-300'}`}></div>
                 <span>RAG</span>

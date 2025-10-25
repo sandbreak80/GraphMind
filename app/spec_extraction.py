@@ -20,7 +20,7 @@ class SpecExtractor:
         """Initialize with retriever instance."""
         self.retriever = retriever
     
-    def extract_spec(self, query: str, top_k: int = 15) -> Dict[str, Any]:
+    async def extract_spec(self, query: str, top_k: int = 15) -> Dict[str, Any]:
         """
         Extract comprehensive trading strategy specification for production bot development.
         
@@ -28,7 +28,7 @@ class SpecExtractor:
         actionable trading strategy specifications suitable for automated trading.
         """
         # Retrieve relevant documents with higher k for better coverage
-        results = self.retriever.retrieve(query, top_k=top_k)
+        results = await self.retriever.retrieve_async(query, top_k=top_k)
         
         if not results:
             return {

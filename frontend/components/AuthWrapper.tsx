@@ -6,10 +6,12 @@ import { LoginForm } from './LoginForm'
 import { ChatInterface } from './ChatInterface'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
+import { usePathname } from 'next/navigation'
 
-export function AuthWrapper() {
+export function AuthWrapper({ children }: { children?: React.ReactNode }) {
   const { isAuthenticated, checkAuth, login, logout } = useStore()
   const [isChecking, setIsChecking] = useState(true)
+  const pathname = usePathname()
 
   useEffect(() => {
     // Check if user is already authenticated
@@ -40,6 +42,12 @@ export function AuthWrapper() {
     return <LoginForm onLogin={handleLogin} />
   }
 
+  // If children are provided (like for specific pages), render them
+  if (children) {
+    return <>{children}</>
+  }
+
+  // Default chat interface for home page
   return (
     <div className="h-screen flex bg-gray-50 dark:bg-gray-900">
       <Sidebar />

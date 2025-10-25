@@ -165,7 +165,7 @@ class EnhancedRAGWithMCP:
     async def get_comprehensive_analysis(self, query: str, symbol: str = "ES") -> Dict[str, Any]:
         """Get comprehensive analysis combining RAG, real-time data, and news."""
         # Get document-based results
-        doc_results = self.retriever.retrieve(query, top_k=10)
+        doc_results = await self.retriever.retrieve_async(query, top_k=10)
         
         real_time_data = {}
         news_data = []

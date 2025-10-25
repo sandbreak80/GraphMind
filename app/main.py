@@ -1,5 +1,6 @@
 """FastAPI application for TradingAI Research Platform."""
 import logging
+import time
 from contextlib import asynccontextmanager
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Form, Depends
@@ -21,6 +22,16 @@ from app.web_parser import WebPageParser, EnhancedWebSearch as ParsedWebSearch
 from app.memory_system import UserMemory, MemoryAwareRAG
 from app.system_prompt_manager import system_prompt_manager
 from app.user_prompt_manager import user_prompt_manager
+from app.monitoring import monitor
+from app.caching import query_cache, redis_query_cache
+from app.model_selector import model_selector
+from app.retrieval_optimizer import retrieval_optimizer
+from app.query_analyzer import query_analyzer
+from app.advanced_retrieval import AdvancedHybridRetriever
+from app.query_expansion import query_expander
+from app.advanced_reranking import advanced_reranker
+from app.context_compression import context_compressor
+from app.metadata_enhancement import metadata_enhancer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -43,11 +54,26 @@ memory_aware_rag: Optional[MemoryAwareRAG] = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize services on startup."""
-    global ingestor, retriever, spec_extractor, enhanced_rag, mcp_rag, searxng_rag, obsidian_rag, query_generator, enhanced_web_search, comprehensive_research, user_memory, memory_aware_rag
+    global ingestor, retriever, advanced_retriever, spec_extractor, enhanced_rag, mcp_rag, searxng_rag, obsidian_rag, query_generator, enhanced_web_search, comprehensive_research, user_memory, memory_aware_rag
     
     logger.info("Initializing high-performance RAG service...")
     ingestor = PDFIngestor()
     retriever = HybridRetriever()
+    
+    # Initialize advanced retriever
+    import chromadb
+    from sentence_transformers import SentenceTransformer
+    import os
+    
+    chroma_url = os.getenv("CHROMA_URL", "http://chromadb:8000")
+    chroma_client = chromadb.HttpClient(host=chroma_url.split("://")[1].split(":")[0], port=int(chroma_url.split(":")[-1]))
+    embedding_model = SentenceTransformer('BAAI/bge-m3')
+    advanced_retriever = AdvancedHybridRetriever(chroma_client, embedding_model)
+    
+    # Load existing documents for advanced processing
+    await advanced_retriever.load_existing_documents()
+    logger.info("Advanced hybrid retriever initialized with existing documents")
+    
     spec_extractor = SpecExtractor(retriever)
     
     # Initialize intelligent query generator
@@ -184,16 +210,62 @@ async def ask_question(request: AskRequest, current_user: dict = Depends(get_cur
     - mode="qa": Returns answer with citations
     - mode="spec": Extracts strategy spec as YAML
     """
+    start_time = time.time()
+    
     try:
+        # Smart model selection (can be disabled for testing)
+        if request.disable_model_override:
+            selected_model = request.model
+            logger.info(f"Model override disabled - using requested: {selected_model}")
+        else:
+            # Use query analyzer for more intelligent model selection
+            analysis = query_analyzer.analyze(request.query)
+            selected_model = analysis.suggested_model
+            if request.model != selected_model:
+                logger.info(f"Model auto-selected: {selected_model} (requested: {request.model}) - complexity: {analysis.complexity_level}")
+        
+        # Check cache first (only for qa mode)
+        if request.mode == "qa":
+            cached_response = redis_query_cache.get(
+                query=request.query,
+                model=selected_model,
+                temperature=request.temperature,
+                max_tokens=request.max_tokens,
+                mode=request.mode
+            )
+            
+            if cached_response:
+                logger.info("Cache hit - returning cached response")
+                response_time = time.time() - start_time
+                monitor.track_query(
+                    query=request.query,
+                    model=selected_model,
+                    response_time=response_time,
+                    query_type="cached",
+                    success=True
+                )
+                # Extract the actual response from the cached data
+                actual_response = cached_response.get('response', cached_response)
+                return AskResponse(**actual_response)
+        
         if request.mode == "spec":
-            result = spec_extractor.extract_spec(
+            result = await spec_extractor.extract_spec(
                 query=request.query,
                 top_k=request.top_k
+            )
+            response_time = time.time() - start_time
+            monitor.track_query(
+                query=request.query,
+                model=selected_model,
+                response_time=response_time,
+                query_type="spec",
+                success=True
             )
             return AskResponse(
                 query=request.query,
                 answer=result["answer"],
                 citations=result["citations"],
+                sources=result["citations"],  # Frontend compatibility
                 mode="spec",
                 spec_file=result.get("spec_file")
             )
@@ -208,13 +280,17 @@ async def ask_question(request: AskRequest, current_user: dict = Depends(get_cur
             
             # Use memory-aware RAG if available
             if memory_aware_rag:
-                # Get document results with custom retrieval settings using parallel processing
+                # Get optimized retrieval parameters based on query complexity
+                analysis = query_analyzer.analyze(request.query)
+                retrieval_params = analysis.suggested_retrieval_params
+                
+                # Use dynamic parameters or fall back to request parameters
                 doc_results = await retriever.retrieve_async(
                     request.query, 
-                    top_k=request.top_k,
-                    bm25_top_k=request.bm25_top_k,
-                    embedding_top_k=request.embedding_top_k,
-                    rerank_top_k=request.rerank_top_k
+                    top_k=retrieval_params.get('top_k', request.top_k),
+                    bm25_top_k=retrieval_params.get('bm25_top_k', request.bm25_top_k),
+                    embedding_top_k=retrieval_params.get('embedding_top_k', request.embedding_top_k),
+                    rerank_top_k=retrieval_params.get('rerank_top_k', request.rerank_top_k)
                 )
                 combined_context = "\n".join([r['text'] for r in doc_results])
                 
@@ -230,45 +306,139 @@ async def ask_question(request: AskRequest, current_user: dict = Depends(get_cur
                     request.query, 
                     combined_context, 
                     conversation_history,
-                    request.model,
+                    selected_model,  # Use selected model
                     request.temperature,
                     request.max_tokens,
                     request.top_k_sampling
                 )
                 
-                # Create citations
-                citations = [
-                    Citation(
+                # Create citations with proper source formatting
+                citations = []
+                for r in doc_results:
+                    # Get document type for better source display
+                    doc_type = r['metadata'].get('doc_type', 'Document')
+                    file_name = r['metadata'].get('file_name', 'Unknown')
+                    
+                    # Format source based on document type
+                    if doc_type == 'video_transcript':
+                        source_display = f"Video: {file_name}"
+                    elif doc_type == 'pdf':
+                        source_display = f"PDF: {file_name}"
+                    elif doc_type == 'text_document':
+                        source_display = f"Document: {file_name}"
+                    elif doc_type == 'llm_processed':
+                        source_display = f"AI Processed: {file_name}"
+                    else:
+                        source_display = f"{doc_type.title()}: {file_name}"
+                    
+                    citations.append(Citation(
                         text=r['text'][:200] + "...",
                         doc_id=r['metadata'].get('doc_id') or r['metadata'].get('file_name', 'unknown'),
                         page=r['metadata'].get('page'),
-                        section=r['metadata'].get('section') or r['metadata'].get('doc_type', 'unknown'),
+                        section=source_display,
                         score=r['rerank_score']
-                    )
-                    for r in doc_results
-                ]
+                    ))
                 
                 result = {
                     "answer": answer,
-                    "citations": citations
+                    "citations": citations,
+                    "sources": citations  # Frontend compatibility
                 }
             else:
+                # Get optimized retrieval parameters based on query complexity
+                analysis = query_analyzer.analyze(request.query)
+                retrieval_params = analysis.suggested_retrieval_params
+                
                 result = retriever.answer_query(
                     query=request.query,
-                    top_k=request.top_k,
+                    top_k=retrieval_params.get('top_k', request.top_k),
                     conversation_history=conversation_history,
-                    model=request.model,
-                    bm25_top_k=request.bm25_top_k,
-                    embedding_top_k=request.embedding_top_k,
-                    rerank_top_k=request.rerank_top_k
+                    model=selected_model,  # Use selected model
+                    bm25_top_k=retrieval_params.get('bm25_top_k', request.bm25_top_k),
+                    embedding_top_k=retrieval_params.get('embedding_top_k', request.embedding_top_k),
+                    rerank_top_k=retrieval_params.get('rerank_top_k', request.rerank_top_k)
                 )
+                
+                # Fix source formatting for non-memory-aware RAG
+                if 'citations' in result and result['citations']:
+                    formatted_citations = []
+                    for citation in result['citations']:
+                        # Get document type for better source display
+                        doc_type = getattr(citation, 'doc_type', 'Document')
+                        file_name = citation.doc_id
+                        
+                        # Format source based on document type
+                        if 'video' in doc_type.lower() or 'transcript' in doc_type.lower():
+                            source_display = f"Video: {file_name}"
+                        elif 'pdf' in doc_type.lower():
+                            source_display = f"PDF: {file_name}"
+                        elif 'text' in doc_type.lower():
+                            source_display = f"Document: {file_name}"
+                        elif 'llm' in doc_type.lower():
+                            source_display = f"AI Processed: {file_name}"
+                        else:
+                            source_display = f"{doc_type.title()}: {file_name}"
+                        
+                        # Create new citation with proper source
+                        formatted_citations.append(Citation(
+                            text=citation.text,
+                            doc_id=citation.doc_id,
+                            page=citation.page,
+                            section=source_display,
+                            score=citation.score
+                        ))
+                    
+                    result['citations'] = formatted_citations
+                    result['sources'] = formatted_citations
+            
+            # Cache the response - convert Citation objects to dicts for JSON serialization
+            def serialize_citations(citations):
+                if isinstance(citations, list):
+                    return [citation.dict() if hasattr(citation, 'dict') else citation for citation in citations]
+                return citations
+            
+            response_data = {
+                "query": request.query,
+                "answer": result["answer"],
+                "citations": serialize_citations(result["citations"]),
+                "sources": serialize_citations(result.get("sources", result["citations"])),  # Frontend compatibility
+                "mode": "qa"
+            }
+            redis_query_cache.set(
+                query=request.query,
+                model=selected_model,
+                response=response_data,
+                temperature=request.temperature,
+                max_tokens=request.max_tokens,
+                mode=request.mode
+            )
+            
+            # Track performance
+            response_time = time.time() - start_time
+            monitor.track_query(
+                query=request.query,
+                model=selected_model,
+                response_time=response_time,
+                query_type="normal",
+                success=True
+            )
+            
             return AskResponse(
                 query=request.query,
                 answer=result["answer"],
                 citations=result["citations"],
+                sources=result.get("sources", result["citations"]),  # Frontend compatibility
                 mode="qa"
             )
     except Exception as e:
+        response_time = time.time() - start_time
+        monitor.track_query(
+            query=request.query,
+            model=request.model,
+            response_time=response_time,
+            query_type="error",
+            success=False
+        )
         logger.error(f"Query error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -445,7 +615,7 @@ async def ask_research_question(request: AskRequest, current_user: dict = Depend
                 ]
             
             # Conduct comprehensive research
-            research_result = comprehensive_research.conduct_comprehensive_research(
+            research_result = await comprehensive_research.conduct_comprehensive_research(
                 request.query, 
                 conversation_history
             )
@@ -531,7 +701,7 @@ async def test_research_models(request: AskRequest, current_user: dict = Depends
             ]
         
         # Conduct research
-        research_result = comprehensive_research.conduct_comprehensive_research(
+        research_result = await comprehensive_research.conduct_comprehensive_research(
             request.query, 
             conversation_history
         )
@@ -657,6 +827,22 @@ async def get_user_prompts(current_user: dict = Depends(get_current_user)):
         return {"prompts": prompts}
     except Exception as e:
         logger.error(f"Failed to get user prompts: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/user-prompts/{mode}")
+async def get_user_prompt(mode: str, current_user: dict = Depends(get_current_user)):
+    """Get user's custom prompt for a specific mode."""
+    try:
+        user_id = current_user.get("username", "anonymous")
+        prompt = user_prompt_manager.get_user_prompt(user_id, mode)
+        if prompt:
+            return {"prompt": prompt}
+        else:
+            # Return default system prompt if no custom prompt exists
+            default_prompt = system_prompt_manager.get_prompt(mode)
+            return {"prompt": default_prompt, "is_default": True}
+    except Exception as e:
+        logger.error(f"Failed to get user prompt for {mode}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/user-prompts/{mode}")
@@ -797,6 +983,26 @@ async def get_user_insights(user_id: str, category: str = "general", limit: int 
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.delete("/memory/clear/{category}")
+async def clear_memory_category(category: str, current_user: dict = Depends(get_current_user)):
+    """Clear all insights for a specific category."""
+    try:
+        if not user_memory:
+            raise HTTPException(status_code=503, detail="Memory system not available")
+        
+        user_id = current_user.get("username", "anonymous")
+        success = user_memory.clear_category(user_id, category)
+        
+        if success:
+            return {"message": f"Cleared all insights for category: {category}"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to clear category")
+        
+    except Exception as e:
+        logger.error(f"Failed to clear category {category}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/ask-obsidian", response_model=AskResponse)
 async def ask_obsidian_question(request: AskRequest, current_user: dict = Depends(get_current_user)):
     """Ask a question with enhanced personal knowledge from Obsidian notes."""
@@ -887,6 +1093,189 @@ async def get_stats(current_user: dict = Depends(get_current_user)):
     except Exception as e:
         logger.error(f"Stats error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Monitoring endpoints
+@app.get("/monitoring/performance")
+async def get_performance_metrics():
+    """Get current performance metrics."""
+    return monitor.get_summary()
+
+@app.get("/monitoring/cache")
+async def get_cache_metrics():
+    """Get cache statistics."""
+    return redis_query_cache.get_stats()
+
+@app.post("/monitoring/cache/clear")
+async def clear_cache():
+    """Clear all cached queries."""
+    success = redis_query_cache.clear()
+    return {"success": success, "message": "Cache cleared" if success else "Failed to clear cache"}
+
+@app.post("/analyze-query")
+async def analyze_query(query: str = Form(...)):
+    """Analyze query complexity and get recommendations."""
+    analysis = query_analyzer.get_detailed_analysis(query)
+    return analysis
+
+@app.post("/advanced-search")
+async def advanced_search(query: str = Form(...), top_k: int = 10):
+    """Advanced hybrid search with semantic chunking."""
+    try:
+        results = await advanced_retriever.retrieve_advanced(query, top_k)
+        return {
+            "query": query,
+            "results": results,
+            "count": len(results),
+            "stats": advanced_retriever.get_retrieval_stats()
+        }
+    except Exception as e:
+        logger.error(f"Advanced search error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/expand-query")
+async def expand_query(query: str = Form(...), expansion_level: str = "medium"):
+    """Expand query with synonyms and context awareness."""
+    try:
+        expanded_query = await query_expander.expand_query_async(query, expansion_level)
+        return {
+            "original_query": expanded_query.original_query,
+            "expanded_queries": expanded_query.expanded_queries,
+            "synonyms": expanded_query.synonyms,
+            "context_terms": expanded_query.context_terms,
+            "trading_terms": expanded_query.trading_terms,
+            "technical_terms": expanded_query.technical_terms,
+            "confidence_score": expanded_query.confidence_score,
+            "expansion_strategy": expanded_query.expansion_strategy,
+            "stats": query_expander.get_expansion_stats()
+        }
+    except Exception as e:
+        logger.error(f"Query expansion error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/rerank-results")
+async def rerank_results(query: str = Form(...), results: str = Form(...), 
+                        rerank_strategy: str = "comprehensive", top_k: int = 10):
+    """Rerank results using advanced scoring methods."""
+    try:
+        import json
+        results_data = json.loads(results)
+        
+        reranked = advanced_reranker.rerank_results(
+            query, results_data, top_k, rerank_strategy
+        )
+        
+        # Convert RerankResult objects to dictionaries
+        reranked_dicts = []
+        for result in reranked:
+            reranked_dicts.append({
+                "text": result.text,
+                "metadata": result.metadata,
+                "final_score": result.final_score,
+                "individual_scores": result.individual_scores,
+                "ranking_factors": result.ranking_factors,
+                "confidence": result.confidence
+            })
+        
+        return {
+            "query": query,
+            "reranked_results": reranked_dicts,
+            "count": len(reranked_dicts),
+            "rerank_strategy": rerank_strategy,
+            "stats": advanced_reranker.get_reranking_stats()
+        }
+    except Exception as e:
+        logger.error(f"Reranking error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/compress-context")
+async def compress_context(text: str = Form(...), target_ratio: float = 0.3, 
+                          method: str = "hybrid", max_length: int = 1000):
+    """Compress context using advanced summarization techniques."""
+    try:
+        compressed = await context_compressor.compress_context(
+            text, target_ratio, method, max_length
+        )
+        
+        return {
+            "original_text": compressed.original_text,
+            "compressed_text": compressed.compressed_text,
+            "summary": compressed.summary,
+            "key_points": compressed.key_points,
+            "compression_ratio": compressed.compression_ratio,
+            "quality_score": compressed.quality_score,
+            "compression_method": compressed.compression_method,
+            "metadata": compressed.metadata,
+            "stats": context_compressor.get_compression_stats()
+        }
+    except Exception as e:
+        logger.error(f"Context compression error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/extract-metadata")
+async def extract_metadata(document_id: str = Form(...), title: str = Form(...), 
+                          text: str = Form(...), source: str = "unknown"):
+    """Extract enhanced metadata from document."""
+    try:
+        enhanced_metadata = await metadata_enhancer.extract_enhanced_metadata(
+            document_id, title, text, source
+        )
+        
+        return {
+            "document_id": enhanced_metadata.document_id,
+            "title": enhanced_metadata.title,
+            "content_type": enhanced_metadata.content_type,
+            "trading_domain": enhanced_metadata.trading_domain,
+            "complexity_level": enhanced_metadata.complexity_level,
+            "key_concepts": enhanced_metadata.key_concepts,
+            "trading_strategies": enhanced_metadata.trading_strategies,
+            "technical_indicators": enhanced_metadata.technical_indicators,
+            "risk_factors": enhanced_metadata.risk_factors,
+            "time_frames": enhanced_metadata.time_frames,
+            "market_conditions": enhanced_metadata.market_conditions,
+            "quality_indicators": enhanced_metadata.quality_indicators,
+            "sentiment": enhanced_metadata.sentiment,
+            "confidence_scores": enhanced_metadata.confidence_scores,
+            "extraction_timestamp": enhanced_metadata.extraction_timestamp,
+            "version": enhanced_metadata.version,
+            "stats": metadata_enhancer.get_extraction_stats()
+        }
+    except Exception as e:
+        logger.error(f"Metadata extraction error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/filter-documents")
+async def filter_documents(documents: str = Form(...), filters: str = Form(...)):
+    """Filter documents based on metadata criteria."""
+    try:
+        import json
+        documents_data = json.loads(documents)
+        filters_data = json.loads(filters)
+        
+        filtered_docs = metadata_enhancer.filter_by_metadata(documents_data, filters_data)
+        
+        return {
+            "original_count": len(documents_data),
+            "filtered_count": len(filtered_docs),
+            "filtered_documents": filtered_docs,
+            "filters_applied": filters_data
+        }
+    except Exception as e:
+        logger.error(f"Document filtering error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/monitoring/recent")
+async def get_recent_queries(count: int = 10):
+    """Get recent query response times."""
+    return {"recent_times": monitor.get_recent_queries(count)}
+
+@app.get("/monitoring/retrieval")
+async def get_retrieval_optimization():
+    """Get retrieval optimization profiles and statistics."""
+    return {
+        "profiles": retrieval_optimizer.compare_profiles(),
+        "optimizer_available": True
+    }
 
 
 @app.get("/ollama/models")

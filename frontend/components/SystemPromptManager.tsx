@@ -44,18 +44,34 @@ export function SystemPromptManager({ isOpen, onClose }: SystemPromptManagerProp
         const data = await response.json()
         const promptList = await Promise.all(
           Object.keys(data.prompts).map(async (mode) => {
-            const promptResponse = await fetch(`/api/system-prompts/${mode}`, {
+            // Load the current active prompt (custom or default)
+            const promptResponse = await fetch(`/api/user-prompts/${mode}`, {
               headers: {
                 'Authorization': `Bearer ${authToken}`
               }
             })
             if (promptResponse.ok) {
-              return await promptResponse.json()
+              const promptData = await promptResponse.json()
+              // Extract the actual prompt text from the response
+              let promptText = ''
+              if (typeof promptData.prompt === 'string') {
+                promptText = promptData.prompt
+              } else if (promptData.prompt && typeof promptData.prompt === 'object' && promptData.prompt.prompt) {
+                promptText = promptData.prompt.prompt
+              }
+              
+              return {
+                mode,
+                current_version: promptData.is_default ? 'default' : 'custom',
+                versions: ['default', 'custom'],
+                prompt: promptText,
+                hash: promptData.prompt?.hash || null
+              }
             }
             return null
           })
         )
-        setPrompts(promptList.filter(Boolean))
+        setPrompts(promptList.filter((prompt): prompt is PromptInfo => prompt !== null))
       } else {
         setError('Failed to load prompts')
       }

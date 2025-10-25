@@ -218,13 +218,12 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                       )
                     },
                     img({ src, alt, ...props }: any) {
+                      // Don't render images to avoid placeholders
                       return (
-                        <img 
-                          src={src} 
-                          alt={alt} 
-                          className="max-w-full h-auto rounded-lg my-4" 
-                          {...props} 
-                        />
+                        <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-4 my-4 text-center text-gray-600 dark:text-gray-400">
+                          <div className="text-sm">📷 Image placeholder</div>
+                          <div className="text-xs mt-1">{alt || 'No description available'}</div>
+                        </div>
                       )
                     },
                     pre({ children, ...props }: any) {

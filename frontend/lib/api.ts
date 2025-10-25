@@ -8,8 +8,8 @@ export const getApiUrl = () => {
   if (typeof window !== 'undefined') {
     // Check if we're in development mode (localhost)
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      // Use local backend for development
-      return 'http://localhost:8001'
+      // Use local backend for development - connect to the exposed port
+      return 'http://localhost:8002'
     } else {
       // For production, the frontend is exposed via Cloudflare tunnel
       // but the API is NOT exposed - it's internal to the Docker network
@@ -39,6 +39,29 @@ api.interceptors.request.use((config) => {
   
   return config
 })
+
+// Response interceptor to handle authentication errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Handle authentication errors
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      // Clear authentication state and redirect to login
+      const { logout } = useStore.getState()
+      logout()
+      
+      // Show user-friendly message
+      if (typeof window !== 'undefined') {
+        // Import toast dynamically to avoid SSR issues
+        import('react-hot-toast').then(({ toast }) => {
+          toast.error('Your session has expired. Please log in again.')
+        })
+      }
+    }
+    
+    return Promise.reject(error)
+  }
+)
 
 export interface AskRequest {
   query: string

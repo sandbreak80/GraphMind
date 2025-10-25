@@ -6,6 +6,10 @@ services:
     container_name: tradingai-rag
     ports:
       - "8001:8000"
+    networks:
+      default:
+        aliases:
+          - rag-service
     volumes:
       # Mount documents directory - update DOCUMENTS_DIR in .env file
       - ${DOCUMENTS_DIR:-./documents}:/workspace/pdfs:ro
@@ -32,6 +36,9 @@ services:
       
       # Collection Configuration
       - COLLECTION_NAME=emini_docs
+      - CHROMA_URL=http://chromadb:8000
+      - REDIS_URL=redis://redis:6379
+      - CHROMA_DIR=/workspace/chroma_db
       
       # High-Performance Retrieval Configuration (optimized for 100GB RAM + 24 CPU cores + 2x GPU)
       - BM25_TOP_K=30
@@ -110,8 +117,36 @@ services:
       - NODE_ENV=production
     depends_on:
       - rag-service
+    networks:
+      - default
+    restart: unless-stopped
+
+  # Production ChromaDB
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: tradingai-chromadb
+    ports:
+      - "8003:8000"
+    volumes:
+      - chroma-data:/chroma/chroma
+    environment:
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8000
+    restart: unless-stopped
+
+  # Production Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: tradingai-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
     restart: unless-stopped
 
 volumes:
   chroma-data:
+    driver: local
+  redis-data:
     driver: local

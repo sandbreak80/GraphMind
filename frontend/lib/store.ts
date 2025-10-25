@@ -105,6 +105,10 @@ interface AppState {
   setProcessing: (processing: boolean) => void
   retryLastMessage: () => void
   
+  // URL navigation
+  navigateToChat: (chatId: string) => void
+  getChatUrl: (chatId: string) => string
+  
   // Model switching
   switchModel: (model: string) => void
   getCurrentModel: () => string
@@ -511,6 +515,22 @@ export const useStore = create<AppState>()(
       
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
       setTheme: (theme) => set({ theme }),
+      
+      // URL navigation
+      navigateToChat: (chatId) => {
+        // Update URL without page reload
+        if (typeof window !== 'undefined') {
+          window.history.pushState({}, '', `/chat/${chatId}`)
+        }
+        get().setCurrentChat(chatId)
+      },
+      
+      getChatUrl: (chatId) => {
+        if (typeof window !== 'undefined') {
+          return `${window.location.origin}/chat/${chatId}`
+        }
+        return `/chat/${chatId}`
+      },
       
       initializeApp: async () => {
         // Load models from Ollama

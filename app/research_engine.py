@@ -406,7 +406,7 @@ class ComprehensiveResearchSystem:
         self.retriever = retriever
         self.research_engine = AdvancedResearchEngine(searxng_client, query_generator)
     
-    def conduct_comprehensive_research(self, user_query: str, conversation_history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
+    async def conduct_comprehensive_research(self, user_query: str, conversation_history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
         """
         Conduct comprehensive research combining document retrieval and web search.
         
@@ -419,7 +419,7 @@ class ComprehensiveResearchSystem:
         """
         try:
             # Get document-based results
-            doc_results = self.retriever.retrieve(user_query, top_k=10)
+            doc_results = await self.retriever.retrieve_async(user_query, top_k=10)
             
             # Conduct web research
             web_research = self.research_engine.conduct_research(user_query, conversation_history)

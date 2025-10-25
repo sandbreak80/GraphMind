@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # Development RAG service
+  rag-service-dev:
+    build:
+      context: .
+      dockerfile: config/Dockerfile
+    container_name: emini-rag-dev
+    ports:
+      - "8002:8000"  # Different port
+    volumes:
+      - ./documents:/workspace/documents:ro
+      - ./outputs:/workspace/outputs
+      - ./app:/workspace/app  # Live code reload
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG
+      - CHROMA_DIR=/workspace/chroma_dev
+      - OLLAMA_BASE_URL=http://192.168.50.43:11434
+      - REDIS_URL=redis://redis-dev:6379
+    networks:
+      - dev-network
+    depends_on:
+      - chromadb-dev
+      - redis-dev
+
+  # Development frontend
+  frontend-dev:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: config-frontend-dev
+    ports:
+      - "3002:3000"  # Different port
+    volumes:
+      - ./frontend:/app  # Live code reload
+      - /app/node_modules
+    environment:
+      - NEXT_PUBLIC_API_URL=http://emini-rag-dev:8000
+    networks:
+      - dev-network
+    depends_on:
+      - rag-service-dev
+
+  # Development ChromaDB
+  chromadb-dev:
+    image: chromadb/chroma:latest
+    container_name: chromadb-dev
+    ports:
+      - "8003:8000"  # Different port
+    volumes:
+      - chromadb_dev_data:/chroma/chroma
+    environment:
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8000
+    networks:
+      - dev-network
+
+  # Development Redis Cache
+  redis-dev:
+    image: redis:7-alpine
+    container_name: redis-dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - dev-network
+
+  # Using production Ollama instance (external)
+
+networks:
+  dev-network:
+    driver: bridge
+
+volumes:
+  chromadb_dev_data:
+  redis_dev_data:
