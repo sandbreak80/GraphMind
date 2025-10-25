@@ -400,6 +400,11 @@ class PDFIngestor:
         metadata["doc_id"] = str(chunk.get("doc_id", "unknown"))
         metadata["page"] = int(chunk.get("page") or 0)  # Convert None to 0
         
+        # Add filename - critical for UI document tracking
+        filename = chunk.get("filename")
+        if filename:
+            metadata["filename"] = str(filename)[:500]
+        
         # Optional string fields - only add if not None/empty
         section = chunk.get("section")
         if section:
