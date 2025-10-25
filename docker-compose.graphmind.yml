@@ -16,7 +16,7 @@ services:
       - FRONTEND_DOMAIN=${FRONTEND_DOMAIN:-emini.riffyx.com}
       - REDIS_URL=redis://redis:6379
       - CHROMA_HOST=chromadb
-      - CHROMA_PORT=8001
+      - CHROMA_PORT=8000
       - OLLAMA_BASE_URL=http://ollama:11434
       - SEARXNG_URL=http://searxng:8080
       - MCP_ENABLED=true
