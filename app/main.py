@@ -277,6 +277,137 @@ async def upload_document(file: UploadFile = File(...), current_user: dict = Dep
         logger.error(f"Upload error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/upload-chunk")
+async def upload_chunk(
+    chunk_number: int = Form(...),
+    total_chunks: int = Form(...),
+    filename: str = Form(...),
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Upload a single chunk of a large file.
+    
+    Chunked upload allows:
+    - Real-time progress tracking
+    - Resumable uploads
+    - Better memory efficiency for large files
+    
+    Flow:
+    1. Frontend splits file into 5MB chunks
+    2. Each chunk uploaded separately with progress
+    3. Backend stores chunks in temp directory
+    4. When all chunks received, assemble into final file
+    """
+    try:
+        from pathlib import Path
+        import hashlib
+        
+        # Create temp directory for chunks
+        chunks_dir = Path("/workspace/data/upload_chunks")
+        chunks_dir.mkdir(exist_ok=True, parents=True)
+        
+        # Create unique upload session ID based on filename and user
+        session_id = hashlib.md5(f"{current_user['username']}_{filename}".encode()).hexdigest()
+        session_dir = chunks_dir / session_id
+        session_dir.mkdir(exist_ok=True)
+        
+        # Save chunk
+        chunk_path = session_dir / f"chunk_{chunk_number:04d}"
+        content = await file.read()
+        
+        with open(chunk_path, 'wb') as f:
+            f.write(content)
+        
+        logger.info(f"Received chunk {chunk_number + 1}/{total_chunks} for {filename} ({len(content) / 1024 / 1024:.2f} MB)")
+        
+        # Check if all chunks received
+        existing_chunks = sorted(session_dir.glob("chunk_*"))
+        
+        if len(existing_chunks) == total_chunks:
+            # All chunks received - assemble file
+            logger.info(f"All {total_chunks} chunks received for {filename}. Assembling...")
+            
+            documents_dir = Path("/workspace/documents")
+            documents_dir.mkdir(exist_ok=True, parents=True)
+            final_path = documents_dir / filename
+            
+            # Security: Check for duplicate
+            if final_path.exists():
+                # Clean up chunks
+                import shutil
+                shutil.rmtree(session_dir)
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"File '{filename}' already exists. Please rename or delete the existing file."
+                )
+            
+            # Assemble chunks
+            total_size = 0
+            with open(final_path, 'wb') as final_file:
+                for chunk_file in existing_chunks:
+                    with open(chunk_file, 'rb') as cf:
+                        chunk_data = cf.read()
+                        final_file.write(chunk_data)
+                        total_size += len(chunk_data)
+            
+            # Clean up chunks
+            import shutil
+            shutil.rmtree(session_dir)
+            
+            logger.info(f"✓ Assembled {filename} ({total_size / 1024 / 1024:.2f} MB)")
+            
+            return {
+                "success": True,
+                "complete": True,
+                "message": f"Upload complete: {filename}",
+                "filename": filename,
+                "size": total_size,
+                "chunks_received": total_chunks,
+                "total_chunks": total_chunks
+            }
+        else:
+            # More chunks expected
+            return {
+                "success": True,
+                "complete": False,
+                "message": f"Chunk {chunk_number + 1}/{total_chunks} received",
+                "chunks_received": len(existing_chunks),
+                "total_chunks": total_chunks
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Chunk upload error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/upload-chunk/{session_id}")
+async def cancel_chunked_upload(
+    session_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Cancel an in-progress chunked upload and clean up."""
+    try:
+        from pathlib import Path
+        import shutil
+        
+        chunks_dir = Path("/workspace/data/upload_chunks")
+        session_dir = chunks_dir / session_id
+        
+        if session_dir.exists():
+            shutil.rmtree(session_dir)
+            logger.info(f"Cancelled chunked upload session: {session_id}")
+            return {"success": True, "message": "Upload cancelled"}
+        else:
+            return {"success": False, "message": "Session not found"}
+            
+    except Exception as e:
+        logger.error(f"Cancel upload error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/ingest")
 async def ingest_documents(request: IngestRequest = None, current_user: dict = Depends(get_current_user)):
     """
