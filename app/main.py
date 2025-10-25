@@ -220,53 +220,131 @@ async def change_password(
 
 @app.post("/upload")
 async def upload_document(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
-    """Upload a document to the documents directory for ingestion."""
+    """Upload a document to the documents directory. Supports files up to 400MB."""
     try:
         from pathlib import Path
+        import shutil
+        
+        # Validate file size (400MB max)
+        MAX_SIZE = 400 * 1024 * 1024  # 400MB
         
         # Save to documents directory
         documents_dir = Path("/workspace/documents")
         documents_dir.mkdir(exist_ok=True, parents=True)
         
-        # Generate unique filename
-        filename = f"{int(time.time())}_{file.filename}"
-        file_path = documents_dir / filename
+        # Keep original filename (no timestamp prefix for better organization)
+        file_path = documents_dir / file.filename
         
-        # Save file
-        content = await file.read()
+        # If file exists, add a number suffix
+        if file_path.exists():
+            base = file_path.stem
+            ext = file_path.suffix
+            counter = 1
+            while file_path.exists():
+                file_path = documents_dir / f"{base}_{counter}{ext}"
+                counter += 1
+        
+        # Save file using streaming for large files
+        total_size = 0
         with open(file_path, 'wb') as f:
-            f.write(content)
+            while chunk := await file.read(8192):  # 8KB chunks
+                total_size += len(chunk)
+                if total_size > MAX_SIZE:
+                    file_path.unlink()  # Delete partial file
+                    raise HTTPException(status_code=413, detail=f"File too large. Maximum size is 400MB")
+                f.write(chunk)
         
-        logger.info(f"Uploaded document: {filename} to {file_path}")
+        logger.info(f"Uploaded document: {file_path.name} ({total_size / 1024 / 1024:.2f} MB)")
         return {
             "success": True,
-            "message": f"Document uploaded successfully: {filename}",
-            "filename": filename,
+            "message": f"Document uploaded successfully: {file_path.name}",
+            "filename": file_path.name,
+            "size": total_size,
             "path": str(file_path)
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Upload error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/ingest", response_model=IngestResponse)
-async def ingest_pdfs(request: IngestRequest, current_user: dict = Depends(get_current_user)):
+@app.post("/ingest")
+async def ingest_documents(request: IngestRequest = None, current_user: dict = Depends(get_current_user)):
     """
-    Ingest PDFs from /workspace/pdfs directory.
+    Ingest all documents from /workspace/documents directory.
     
-    Uses Docling with OCR fallback, chunks documents, and indexes into Chroma.
+    Supports: PDF, Video, Word, Excel, PowerPoint, Images, Text files.
+    Uses Docling with OCR fallback, chunks documents, and indexes into ChromaDB.
     """
     try:
-        logger.info(f"Starting ingestion (force_reindex={request.force_reindex})")
-        result = ingestor.ingest_all(force_reindex=request.force_reindex)
+        from pathlib import Path
+        import chromadb
+        from sentence_transformers import SentenceTransformer
+        from app.ingest import Ingestor
+        import os
         
-        return IngestResponse(
-            status="success",
-            processed_files=result["processed_files"],
-            total_chunks=result["total_chunks"],
-            message=f"Successfully ingested {result['processed_files']} PDFs"
+        force_reindex = request.force_reindex if request else False
+        logger.info(f"Starting batch ingestion (force_reindex={force_reindex})")
+        
+        # Initialize ingestor
+        chroma_url = os.getenv("CHROMA_URL", "http://chromadb:8000")
+        chroma_client = chromadb.HttpClient(
+            host=chroma_url.split("://")[1].split(":")[0],
+            port=int(chroma_url.split(":")[-1])
         )
+        embedding_model = SentenceTransformer('BAAI/bge-m3')
+        ingestor = Ingestor(chroma_client, embedding_model)
+        
+        # Ingest from documents directory
+        documents_dir = Path("/workspace/documents")
+        result = ingestor.ingest_documents(documents_dir, force_reindex=force_reindex)
+        
+        logger.info(f"Ingestion complete: {result['processed_files']} files, {result['total_chunks']} chunks")
+        
+        return {
+            "status": "success",
+            "processed_files": result["processed_files"],
+            "total_chunks": result["total_chunks"],
+            "failed_files": result.get("failed_files", []),
+            "message": result["message"]
+        }
     except Exception as e:
         logger.error(f"Ingestion error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/ingest-status")
+async def get_ingestion_status(current_user: dict = Depends(get_current_user)):
+    """Get the current status of document ingestion."""
+    try:
+        from pathlib import Path
+        import chromadb
+        import os
+        
+        documents_dir = Path("/workspace/documents")
+        
+        # Count files in documents directory
+        total_files = len(list(documents_dir.glob("*"))) if documents_dir.exists() else 0
+        
+        # Count ingested chunks in ChromaDB
+        try:
+            chroma_url = os.getenv("CHROMA_URL", "http://chromadb:8000")
+            chroma_client = chromadb.HttpClient(
+                host=chroma_url.split("://")[1].split(":")[0],
+                port=int(chroma_url.split(":")[-1])
+            )
+            collection = chroma_client.get_collection("documents")
+            total_chunks = collection.count()
+        except Exception:
+            total_chunks = 0
+        
+        return {
+            "total_files": total_files,
+            "total_chunks": total_chunks,
+            "status": "ready" if total_files > 0 else "empty"
+        }
+    except Exception as e:
+        logger.error(f"Status check error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

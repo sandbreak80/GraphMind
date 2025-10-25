@@ -6,6 +6,10 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://rag-service:8000',
   },
+  // Support large file uploads (400MB)
+  experimental: {
+    largePageDataBytes: 400 * 1024 * 1024, // 400MB
+  },
   async rewrites() {
     return [
       {
