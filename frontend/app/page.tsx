@@ -4,6 +4,8 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useStore } from '@/lib/store'
 import { AuthWrapper } from '@/components/AuthWrapper'
+import { UIEnhancements } from '@/components/UIEnhancements'
+import { DarkModeDebug } from '@/components/DarkModeDebug'
 
 export default function Home() {
   const router = useRouter()
@@ -27,5 +29,11 @@ export default function Home() {
     }
   }, [isAuthenticated, currentChatId, chats, router])
 
-  return <AuthWrapper />
+  return (
+    <>
+      <UIEnhancements />
+      <AuthWrapper />
+      <DarkModeDebug />
+    </>
+  )
 }

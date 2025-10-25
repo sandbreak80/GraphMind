@@ -11,6 +11,7 @@ import {
   ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline'
 import { SettingsModal } from './SettingsModal'
+import { ThemeToggle } from './ThemeToggle'
 
 interface HeaderProps {
   onLogout: () => void
@@ -78,16 +79,7 @@ export function Header({ onLogout }: HeaderProps) {
               Welcome, {user?.username}
             </div>
             
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
-            >
-              {theme === 'light' ? (
-                <MoonIcon className="h-5 w-5" />
-              ) : (
-                <SunIcon className="h-5 w-5" />
-              )}
-            </button>
+            <ThemeToggle />
             
             <button
               onClick={() => setShowSettings(true)}

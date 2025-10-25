@@ -514,7 +514,19 @@ export const useStore = create<AppState>()(
       },
       
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
-      setTheme: (theme) => set({ theme }),
+      setTheme: (theme) => {
+        set({ theme })
+        // Apply theme to DOM
+        if (typeof window !== 'undefined') {
+          const root = window.document.documentElement
+          root.classList.remove('light', 'dark')
+          root.classList.add(theme)
+          // Also set data attribute for better CSS targeting
+          root.setAttribute('data-theme', theme)
+          // Store in localStorage for persistence
+          localStorage.setItem('theme', theme)
+        }
+      },
       
       // URL navigation
       navigateToChat: (chatId) => {
@@ -547,12 +559,24 @@ export const useStore = create<AppState>()(
         }
         
         // Apply theme
-        const theme = get().settings.theme
-        if (theme === 'system') {
-          const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-          set({ theme: systemTheme })
+        const settingsTheme = get().settings.theme
+        let actualTheme: 'light' | 'dark' = 'light'
+        if (settingsTheme === 'system') {
+          actualTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
         } else {
-          set({ theme })
+          actualTheme = settingsTheme
+        }
+        set({ theme: actualTheme })
+        
+        // Apply theme to DOM
+        if (typeof window !== 'undefined') {
+          const root = window.document.documentElement
+          root.classList.remove('light', 'dark')
+          root.classList.add(actualTheme)
+          // Also set data attribute for better CSS targeting
+          root.setAttribute('data-theme', actualTheme)
+          // Store in localStorage for persistence
+          localStorage.setItem('theme', actualTheme)
         }
       }
     }),

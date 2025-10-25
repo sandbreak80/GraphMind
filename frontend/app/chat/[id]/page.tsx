@@ -7,6 +7,8 @@ import { LoginForm } from '@/components/LoginForm'
 import { Sidebar } from '@/components/Sidebar'
 import { Header } from '@/components/Header'
 import { ChatInterface } from '@/components/ChatInterface'
+import { EnhancedChatInterface } from '@/components/EnhancedChatInterface'
+import { UIEnhancements } from '@/components/UIEnhancements'
 
 export default function ChatPage() {
   const params = useParams()
@@ -76,12 +78,15 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="h-screen flex bg-gray-50 dark:bg-gray-900">
-      <Sidebar />
-      <div className="flex-1 flex flex-col">
-        <Header onLogout={handleLogout} />
-        <ChatInterface />
+    <>
+      <UIEnhancements />
+      <div className="h-screen flex bg-gray-50 dark:bg-gray-900">
+        <Sidebar />
+        <div className="flex-1 flex flex-col">
+          <Header onLogout={handleLogout} />
+          <EnhancedChatInterface />
+        </div>
       </div>
-    </div>
+    </>
   )
 }

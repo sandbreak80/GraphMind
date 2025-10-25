@@ -319,6 +319,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - ✅ **Performance Optimization**: Redis caching, response time tracking
 - ✅ **Source Attribution**: Proper document type display and citations
 - ✅ **Authentication Flow**: Improved session management and error handling
+- ✅ **Hybrid Retrieval**: BM25 + semantic search + cross-encoder reranking
+- ✅ **Advanced Search**: Multi-stage retrieval with performance optimization
 
 ### Completed Features
 - ✅ Model switching mid-chat
@@ -329,6 +331,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - ✅ User memory system
 - ✅ URL-based navigation
 - ✅ Share functionality
+- ✅ Hybrid retrieval system (BM25 + semantic + reranking)
+- ✅ Cross-encoder reranking for superior relevance
+- ✅ Performance optimization with caching and GPU acceleration
 
 ---
 

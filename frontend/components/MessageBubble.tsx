@@ -49,7 +49,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             {isUser ? (
               <div className="whitespace-pre-wrap">{message.content}</div>
             ) : (
-              <div className="prose prose-sm max-w-none dark:prose-invert prose-table:table-auto prose-th:border prose-th:border-gray-300 prose-th:px-4 prose-th:py-2 prose-th:bg-gray-50 prose-th:font-semibold prose-td:border prose-td:border-gray-300 prose-td:px-4 prose-td:py-2 prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-li:text-gray-900 dark:prose-li:text-gray-100 prose-p:text-gray-900 dark:prose-p:text-gray-100 prose-strong:text-gray-900 dark:prose-strong:text-gray-100 prose-em:text-gray-900 dark:prose-em:text-gray-100">
+              <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-bold prose-headings:text-gray-900 dark:prose-headings:text-gray-100 prose-p:text-gray-900 dark:prose-p:text-gray-100 prose-strong:text-gray-900 dark:prose-strong:text-gray-100 prose-em:text-gray-900 dark:prose-em:text-gray-100 prose-li:text-gray-900 dark:prose-li:text-gray-100 prose-a:text-primary-600 dark:prose-a:text-primary-400 prose-a:no-underline hover:prose-a:underline prose-blockquote:border-primary-500 prose-blockquote:bg-gray-50 dark:prose-blockquote:bg-gray-800 prose-code:bg-gray-100 dark:prose-code:bg-gray-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-900 dark:prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-pre:border prose-pre:border-gray-300 dark:prose-pre:border-gray-600">
                 {message.isProcessing && (
                   <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600"></div>
@@ -61,27 +61,46 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                   rehypePlugins={[rehypeKatex, rehypeRaw, rehypeSanitize]}
                   components={{
                     code({ node, className, children, ...props }: any) {
-                      const inline = false;
+                      const inline = !className?.includes('language-');
                       const match = /language-(\w+)/.exec(className || '')
-                      return !inline && match ? (
-                        <SyntaxHighlighter
-                          style={tomorrow}
-                          language={match[1]}
-                          PreTag="div"
-                          {...props}
-                        >
-                          {String(children).replace(/\n$/, '')}
-                        </SyntaxHighlighter>
+                      
+                      if (inline) {
+                        return (
+                          <code className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-1.5 py-0.5 rounded text-sm font-mono border border-gray-200 dark:border-gray-700" {...props}>
+                            {children}
+                          </code>
+                        )
+                      }
+                      
+                      return match ? (
+                        <div className="my-4 rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600">
+                          <div className="bg-gray-800 text-gray-300 px-4 py-2 text-xs font-medium border-b border-gray-700">
+                            {match[1].toUpperCase()}
+                          </div>
+                          <SyntaxHighlighter
+                            style={tomorrow}
+                            language={match[1]}
+                            PreTag="div"
+                            className="!m-0 !p-4"
+                            showLineNumbers={false}
+                            wrapLines={true}
+                            {...props}
+                          >
+                            {String(children).replace(/\n$/, '')}
+                          </SyntaxHighlighter>
+                        </div>
                       ) : (
-                        <code className={`${className} bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm`} {...props}>
-                          {children}
-                        </code>
+                        <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-4 border border-gray-300 dark:border-gray-600">
+                          <code className="text-sm font-mono" {...props}>
+                            {children}
+                          </code>
+                        </pre>
                       )
                     },
                     table({ children, ...props }: any) {
                       return (
-                        <div className="overflow-x-auto my-4">
-                          <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-600" {...props}>
+                        <div className="overflow-x-auto my-6 rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm">
+                          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700" {...props}>
                             {children}
                           </table>
                         </div>
@@ -96,110 +115,110 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                     },
                     th({ children, ...props }: any) {
                       return (
-                        <th className="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left font-semibold text-gray-900 dark:text-gray-100" {...props}>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider" {...props}>
                           {children}
                         </th>
                       )
                     },
                     td({ children, ...props }: any) {
                       return (
-                        <td className="border border-gray-300 dark:border-gray-600 px-4 py-2 text-gray-900 dark:text-gray-100" {...props}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100" {...props}>
                           {children}
                         </td>
                       )
                     },
                     blockquote({ children, ...props }: any) {
                       return (
-                        <blockquote className="border-l-4 border-primary-500 pl-4 py-2 my-4 bg-gray-50 dark:bg-gray-800 italic" {...props}>
+                        <blockquote className="border-l-4 border-primary-500 pl-6 py-4 my-6 bg-gray-50 dark:bg-gray-800 italic text-gray-700 dark:text-gray-300 rounded-r-lg shadow-sm" {...props}>
                           {children}
                         </blockquote>
                       )
                     },
                     hr({ ...props }: any) {
                       return (
-                        <hr className="my-6 border-gray-300 dark:border-gray-600" {...props} />
+                        <hr className="my-8 border-0 border-t-2 border-gray-200 dark:border-gray-700" {...props} />
                       )
                     },
                     ul({ children, ...props }: any) {
                       return (
-                        <ul className="list-disc list-inside my-4 space-y-1" {...props}>
+                        <ul className="list-disc list-inside my-4 space-y-2 ml-4" {...props}>
                           {children}
                         </ul>
                       )
                     },
                     ol({ children, ...props }: any) {
                       return (
-                        <ol className="list-decimal list-inside my-4 space-y-1" {...props}>
+                        <ol className="list-decimal list-inside my-4 space-y-2 ml-4" {...props}>
                           {children}
                         </ol>
                       )
                     },
                     li({ children, ...props }: any) {
                       return (
-                        <li className="text-gray-900 dark:text-gray-100" {...props}>
+                        <li className="text-gray-900 dark:text-gray-100 leading-relaxed" {...props}>
                           {children}
                         </li>
                       )
                     },
                     h1({ children, ...props }: any) {
                       return (
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 my-4" {...props}>
+                        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 my-6 border-b border-gray-200 dark:border-gray-700 pb-2" {...props}>
                           {children}
                         </h1>
                       )
                     },
                     h2({ children, ...props }: any) {
                       return (
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 my-3" {...props}>
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 my-5 border-b border-gray-200 dark:border-gray-700 pb-1" {...props}>
                           {children}
                         </h2>
                       )
                     },
                     h3({ children, ...props }: any) {
                       return (
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 my-2" {...props}>
+                        <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 my-4" {...props}>
                           {children}
                         </h3>
                       )
                     },
                     h4({ children, ...props }: any) {
                       return (
-                        <h4 className="text-base font-semibold text-gray-900 dark:text-gray-100 my-2" {...props}>
+                        <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 my-3" {...props}>
                           {children}
                         </h4>
                       )
                     },
                     h5({ children, ...props }: any) {
                       return (
-                        <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100 my-1" {...props}>
+                        <h5 className="text-base font-semibold text-gray-900 dark:text-gray-100 my-2" {...props}>
                           {children}
                         </h5>
                       )
                     },
                     h6({ children, ...props }: any) {
                       return (
-                        <h6 className="text-sm font-medium text-gray-900 dark:text-gray-100 my-1" {...props}>
+                        <h6 className="text-sm font-medium text-gray-900 dark:text-gray-100 my-2 text-primary-600 dark:text-primary-400" {...props}>
                           {children}
                         </h6>
                       )
                     },
                     p({ children, ...props }: any) {
                       return (
-                        <p className="my-2 text-gray-900 dark:text-gray-100" {...props}>
+                        <p className="my-4 text-gray-900 dark:text-gray-100 leading-relaxed" {...props}>
                           {children}
                         </p>
                       )
                     },
                     strong({ children, ...props }: any) {
                       return (
-                        <strong className="font-semibold text-gray-900 dark:text-gray-100" {...props}>
+                        <strong className="font-bold text-gray-900 dark:text-gray-100" {...props}>
                           {children}
                         </strong>
                       )
                     },
                     em({ children, ...props }: any) {
                       return (
-                        <em className="italic text-gray-900 dark:text-gray-100" {...props}>
+                        <em className="italic text-gray-700 dark:text-gray-300" {...props}>
                           {children}
                         </em>
                       )
@@ -208,7 +227,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                       return (
                         <a 
                           href={href} 
-                          className="text-primary-600 dark:text-primary-400 hover:underline" 
+                          className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline font-medium transition-colors" 
                           target="_blank" 
                           rel="noopener noreferrer"
                           {...props}
@@ -218,17 +237,25 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                       )
                     },
                     img({ src, alt, ...props }: any) {
-                      // Don't render images to avoid placeholders
+                      // Enhanced image placeholder with better styling
                       return (
-                        <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-4 my-4 text-center text-gray-600 dark:text-gray-400">
-                          <div className="text-sm">📷 Image placeholder</div>
-                          <div className="text-xs mt-1">{alt || 'No description available'}</div>
+                        <div className="bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-6 my-6 text-center">
+                          <div className="text-4xl mb-2">🖼️</div>
+                          <div className="text-sm font-medium text-gray-600 dark:text-gray-400">Image Placeholder</div>
+                          <div className="text-xs mt-2 text-gray-500 dark:text-gray-500 max-w-xs mx-auto">
+                            {alt || 'No description available'}
+                          </div>
+                          {src && (
+                            <div className="text-xs mt-2 text-gray-400 dark:text-gray-600 break-all">
+                              {src}
+                            </div>
+                          )}
                         </div>
                       )
                     },
                     pre({ children, ...props }: any) {
                       return (
-                        <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-4" {...props}>
+                        <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-4 border border-gray-300 dark:border-gray-600 shadow-sm" {...props}>
                           {children}
                         </pre>
                       )
