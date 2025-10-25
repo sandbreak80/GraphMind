@@ -60,7 +60,7 @@ async def lifespan(app: FastAPI):
     ingestor = PDFIngestor()
     retriever = HybridRetriever()
     
-    # Initialize advanced retriever
+    # Initialize advanced retriever (lazy-load documents on first use, not on startup)
     import chromadb
     from sentence_transformers import SentenceTransformer
     import os
@@ -70,9 +70,8 @@ async def lifespan(app: FastAPI):
     embedding_model = SentenceTransformer('BAAI/bge-m3')
     advanced_retriever = AdvancedHybridRetriever(chroma_client, embedding_model)
     
-    # Load existing documents for advanced processing
-    await advanced_retriever.load_existing_documents()
-    logger.info("Advanced hybrid retriever initialized with existing documents")
+    # Don't load documents on startup - they'll be loaded on first query
+    logger.info("Advanced hybrid retriever initialized (documents will be loaded on first use)")
     
     spec_extractor = SpecExtractor(retriever)
     
