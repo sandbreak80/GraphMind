@@ -84,44 +84,8 @@ class UserMemory:
             logger.error(f"Failed to get chat context for {user_id}: {e}")
             return {}
     
-    def store_strategy_insight(self, user_id: str, strategy: str, insight: str, importance: float = 0.5) -> bool:
-        """Store a trading strategy insight."""
-        try:
-            file_path = self.get_user_file(user_id, 'strategies')
-            strategies = self._load_json(file_path) or {}
-            
-            if strategy not in strategies:
-                strategies[strategy] = {
-                    'insights': [],
-                    'created_at': time.time(),
-                    'updated_at': time.time()
-                }
-            
-            strategies[strategy]['insights'].append({
-                'insight': insight,
-                'importance': importance,
-                'created_at': time.time()
-            })
-            strategies[strategy]['updated_at'] = time.time()
-            
-            self._save_json(file_path, strategies)
-            return True
-        except Exception as e:
-            logger.error(f"Failed to store strategy insight for {user_id}: {e}")
-            return False
-    
-    def get_strategy_insights(self, user_id: str, strategy: str) -> List[Dict[str, Any]]:
-        """Get insights for a specific strategy."""
-        try:
-            file_path = self.get_user_file(user_id, 'strategies')
-            strategies = self._load_json(file_path) or {}
-            return strategies.get(strategy, {}).get('insights', [])
-        except Exception as e:
-            logger.error(f"Failed to get strategy insights for {user_id}: {e}")
-            return []
-    
-    def store_key_insight(self, user_id: str, insight: str, category: str = 'general') -> bool:
-        """Store a key insight about the user's trading approach."""
+    def store_key_insight(self, user_id: str, insight: str, category: str = 'personal') -> bool:
+        """Store a key insight about the user (personal info, interests, goals, etc.)."""
         try:
             file_path = self.get_user_file(user_id, 'insights')
             insights = self._load_json(file_path) or {}
@@ -143,8 +107,8 @@ class UserMemory:
             logger.error(f"Failed to store key insight for {user_id}: {e}")
             return False
     
-    def get_key_insights(self, user_id: str, category: str = 'general', limit: int = 10) -> List[Dict[str, Any]]:
-        """Get key insights for a user."""
+    def get_key_insights(self, user_id: str, category: str = 'personal', limit: int = 10) -> List[Dict[str, Any]]:
+        """Get key insights about a user (personal info, interests, goals, etc.)."""
         try:
             file_path = self.get_user_file(user_id, 'insights')
             insights = self._load_json(file_path) or {}
@@ -159,7 +123,9 @@ class UserMemory:
             profile = {
                 'user_id': user_id,
                 'preferences': self._load_json(self.get_user_file(user_id, 'preferences')) or {},
-                'strategies': list((self._load_json(self.get_user_file(user_id, 'strategies')) or {}).keys()),
+                'interests': self._load_json(self.get_user_file(user_id, 'interests')) or {},
+                'personal': self._load_json(self.get_user_file(user_id, 'personal')) or {},
+                'profile_info': self._load_json(self.get_user_file(user_id, 'profile')) or {},
                 'recent_insights': self.get_key_insights(user_id, limit=5),
                 'created_at': self._get_oldest_file_time(user_id),
                 'updated_at': time.time()
@@ -193,24 +159,27 @@ class UserMemory:
         try:
             context_parts = []
             
+            # Get user profile (name, location, etc.)
+            profile = self._load_json(self.get_user_file(user_id, 'profile')) or {}
+            if profile:
+                context_parts.append(f"User Profile: {json.dumps(profile, indent=2)}")
+            
             # Get user preferences
             preferences = self._load_json(self.get_user_file(user_id, 'preferences')) or {}
             if preferences:
                 context_parts.append(f"User Preferences: {json.dumps(preferences, indent=2)}")
             
-            # Get recent insights
-            recent_insights = self.get_key_insights(user_id, limit=3)
-            if recent_insights:
-                insights_text = "\n".join([i['insight'] for i in recent_insights])
-                context_parts.append(f"Recent Insights: {insights_text}")
+            # Get user interests
+            interests = self._load_json(self.get_user_file(user_id, 'interests')) or {}
+            if interests:
+                context_parts.append(f"User Interests: {json.dumps(interests, indent=2)}")
             
-            # Get strategy insights if query mentions strategies
-            if any(word in current_query.lower() for word in ['strategy', 'setup', 'fade', 'trade']):
-                strategies = self._load_json(self.get_user_file(user_id, 'strategies')) or {}
-                for strategy, data in strategies.items():
-                    if data.get('insights'):
-                        strategy_insights = "\n".join([i['insight'] for i in data['insights'][-3:]])
-                        context_parts.append(f"{strategy} Insights: {strategy_insights}")
+            # Get recent insights from all categories
+            for category in ['personal', 'preferences', 'interests', 'context', 'goals', 'background']:
+                insights = self.get_key_insights(user_id, category=category, limit=3)
+                if insights:
+                    insights_text = "\n".join([i['insight'] for i in insights])
+                    context_parts.append(f"{category.title()} Insights: {insights_text}")
             
             return "\n\n".join(context_parts) if context_parts else ""
             
@@ -295,13 +264,13 @@ USER QUESTION: {query}"""
                 timeout=300
             )
             
-            # Store insights if the response contains strategy information
-            if any(word in response.lower() for word in ['strategy', 'setup', 'fade', 'trade', 'entry', 'exit']):
-                self.memory.store_key_insight(
-                    user_id, 
-                    f"Query: {query[:100]}... | Response: {response[:200]}...",
-                    'strategy_discussion'
-                )
+            # Store relevant insights about the conversation
+            # This can be enhanced with more intelligent categorization later
+            self.memory.store_key_insight(
+                user_id, 
+                f"Query: {query[:100]}... | Response: {response[:200]}...",
+                'context'
+            )
             
             return response
             
