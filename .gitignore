@@ -76,3 +76,26 @@ frontend/.next/
 frontend/out/
 frontend/build/
 frontend/dist/
+
+# Session documentation (temporary, not for repo)
+*_SESSION*.md
+*_SUMMARY*.md
+*_REPORT*.md
+*_STATUS*.md
+*_COMPLETE*.md
+*_ANALYSIS*.md
+*_PLAN*.md
+*_SPEC*.md
+*_PROGRESS*.md
+*_TRACKING*.md
+*_INVESTIGATION*.md
+*_COMMANDS*.md
+BUG_*.md
+CRITICAL_*.md
+ALL_DOCS_*.md
+
+# Testing artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+coverage.xml

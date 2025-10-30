@@ -46,9 +46,11 @@ GraphMind is an advanced, self-hosted RAG (Retrieval-Augmented Generation) frame
 - ✅ **AI Enrichment** - Auto-generated summaries, concepts, categories
 - ✅ **20+ Metadata Fields** - Rich context for every chunk
 - ✅ **GPU Acceleration** - Parallel processing with CUDA
+- ✅ **Prompt Uplift** - Automatic query optimization (+10-20% relevance)
+- ✅ **Query Expansion** - Multiple query variants for better recall
 
 **Roadmap to A+ (95/100):**
-- 🔄 Prompt Uplift + Query Expansion (+10-20% relevance)
+- ✅ Prompt Uplift + Query Expansion (+10-20% relevance) - **COMPLETED**
 - 🔄 Self-Check Verification (-30-50% hallucinations)
 - 🔄 Obsidian GraphRAG (+10-20% recall)
 - 🔄 Auto Mode Routing (smart query routing)

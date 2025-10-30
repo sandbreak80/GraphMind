@@ -32,6 +32,9 @@ from app.query_expansion import query_expander
 from app.advanced_reranking import advanced_reranker
 from app.context_compression import context_compressor
 from app.metadata_enhancement import metadata_enhancer
+from app.prompt_uplift_pipeline import PromptUpliftPipeline
+from app.prompt_uplift_config import get_config_dict
+from app.config import FEATURES
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -355,7 +358,7 @@ async def upload_chunk(
             import shutil
             shutil.rmtree(session_dir)
             
-            logger.info(f"✓ Assembled {filename} ({total_size / 1024 / 1024:.2f} MB)")
+            logger.info(f"? Assembled {filename} ({total_size / 1024 / 1024:.2f} MB)")
             
             return {
                 "success": True,
@@ -537,6 +540,42 @@ async def ask_question(request: AskRequest, current_user: dict = Depends(get_cur
                 actual_response = cached_response.get('response', cached_response)
                 return AskResponse(**actual_response)
         
+        # Prompt Uplift Pipeline (if enabled)
+        final_query = request.query
+        expansion_queries = []
+        uplift_metadata = None
+        
+        if FEATURES.get("prompt_uplift", False):
+            try:
+                uplift_pipeline = PromptUpliftPipeline(config=get_config_dict())
+                context = {
+                    "user_id": current_user.get("username", "anonymous"),
+                    "conversation_id": getattr(request, "conversation_id", None)
+                }
+                processed = uplift_pipeline.process(final_query, context)
+                
+                final_query = processed.final_query
+                expansion_queries = processed.expansions if FEATURES.get("query_expansion", False) else []
+                
+                uplift_metadata = {
+                    "original_query": processed.metadata.get("original", request.query),
+                    "improved_query": processed.final_query,
+                    "expansions": processed.expansions,
+                    "uplift_confidence": processed.uplift_confidence,
+                    "used_expansion": len(processed.expansions) > 0,
+                    "classification": processed.classification.task_type,
+                    "used_original": processed.used_original
+                }
+                
+                logger.info(f"Prompt uplift: '{request.query[:50]}' ? '{final_query[:50]}' (confidence: {processed.uplift_confidence:.2f})")
+            except Exception as e:
+                logger.warning(f"Prompt uplift failed: {e}, using original query")
+                final_query = request.query
+                expansion_queries = []
+        else:
+            final_query = request.query
+            expansion_queries = []
+        
         if request.mode == "spec":
             result = await spec_extractor.extract_spec(
                 query=request.query,
@@ -570,17 +609,56 @@ async def ask_question(request: AskRequest, current_user: dict = Depends(get_cur
             # Use memory-aware RAG if available
             if memory_aware_rag:
                 # Get optimized retrieval parameters based on query complexity
-                analysis = query_analyzer.analyze(request.query)
+                analysis = query_analyzer.analyze(final_query)  # Use uplifted query
                 retrieval_params = analysis.suggested_retrieval_params
                 
                 # Use dynamic parameters or fall back to request parameters
                 doc_results = await retriever.retrieve_async(
-                    request.query, 
+                    final_query,  # Use uplifted query
                     top_k=retrieval_params.get('top_k', request.top_k),
                     bm25_top_k=retrieval_params.get('bm25_top_k', request.bm25_top_k),
                     embedding_top_k=retrieval_params.get('embedding_top_k', request.embedding_top_k),
                     rerank_top_k=retrieval_params.get('rerank_top_k', request.rerank_top_k)
                 )
+                
+                # FIX: Check if retrieval returned any results
+                if not doc_results or len(doc_results) == 0:
+                    logger.warning(f"No documents found for query (memory-aware path): {request.query}")
+                    response_time = time.time() - start_time
+                    monitor.track_query(
+                        query=request.query,
+                        model=selected_model,
+                        response_time=response_time,
+                        query_type="qa_no_docs",
+                        success=True
+                    )
+                    return AskResponse(
+                        query=request.query,
+                        answer="No relevant documents found in the database.\n\n**To use RAG mode:**\n1. Upload documents via the Documents page\n2. Wait for ingestion to complete\n3. Try your query again\n\n**Alternatively:**\n- Use 'Web Search Only' mode to search the internet\n- Use 'Comprehensive Research' mode for multi-source research",
+                        citations=[],
+                        sources=[],
+                        mode=request.mode,
+                        web_enabled=False
+                    )
+                
+                # Retrieve with expansions if any
+                if expansion_queries:
+                    expansion_results = []
+                    for exp_query in expansion_queries:
+                        exp_results = await retriever.retrieve_async(
+                            exp_query,
+                            top_k=5,
+                            bm25_top_k=5,
+                            embedding_top_k=5,
+                            rerank_top_k=5
+                        )
+                        if exp_results:
+                            expansion_results.extend(exp_results)
+                    
+                    # Merge and deduplicate
+                    all_results = doc_results + expansion_results
+                    doc_results = _deduplicate_results(all_results)
+                
                 combined_context = "\n".join([r['text'] for r in doc_results])
                 
                 # Get system prompt for RAG mode
@@ -589,10 +667,10 @@ async def ask_question(request: AskRequest, current_user: dict = Depends(get_cur
                     user_id, "rag_only", system_prompt_manager.get_prompt("rag_only")
                 )
                 
-                # Generate with memory
+                # Generate with memory (only if we have context!)
                 answer = memory_aware_rag.generate_with_memory(
                     user_id, 
-                    request.query, 
+                    final_query,  # Use uplifted query
                     combined_context, 
                     conversation_history,
                     selected_model,  # Use selected model
@@ -635,14 +713,64 @@ async def ask_question(request: AskRequest, current_user: dict = Depends(get_cur
                 }
             else:
                 # Get optimized retrieval parameters based on query complexity
-                analysis = query_analyzer.analyze(request.query)
+                analysis = query_analyzer.analyze(final_query)  # Use uplifted query
                 retrieval_params = analysis.suggested_retrieval_params
                 
+                # Retrieve with primary query
+                doc_results_list = []
+                doc_results_dict = await retriever.retrieve_async(
+                    final_query,  # Use uplifted query
+                    top_k=retrieval_params.get('top_k', request.top_k),
+                    bm25_top_k=retrieval_params.get('bm25_top_k', request.bm25_top_k),
+                    embedding_top_k=retrieval_params.get('embedding_top_k', request.embedding_top_k),
+                    rerank_top_k=retrieval_params.get('rerank_top_k', request.rerank_top_k)
+                ) if hasattr(retriever, 'retrieve_async') else None
+                
+                if doc_results_dict:
+                    doc_results_list.extend(doc_results_dict)
+                
+                # Retrieve with expansions if any
+                if expansion_queries:
+                    for exp_query in expansion_queries:
+                        exp_results = await retriever.retrieve_async(
+                            exp_query,
+                            top_k=5,
+                            bm25_top_k=5,
+                            embedding_top_k=5,
+                            rerank_top_k=5
+                        ) if hasattr(retriever, 'retrieve_async') else []
+                        if exp_results:
+                            doc_results_list.extend(exp_results)
+                    
+                    # Deduplicate
+                    doc_results_list = _deduplicate_results(doc_results_list)
+                
+                # FIX: Check if we have any documents before calling answer_query
+                if not doc_results_list or len(doc_results_list) == 0:
+                    logger.warning(f"No documents found for query: {request.query} (database likely empty)")
+                    response_time = time.time() - start_time
+                    monitor.track_query(
+                        query=request.query,
+                        model=selected_model,
+                        response_time=response_time,
+                        query_type="qa_no_docs",
+                        success=True
+                    )
+                    return AskResponse(
+                        query=request.query,
+                        answer="No relevant documents found in the database.\n\n**To use RAG mode:**\n1. Upload documents via the Documents page\n2. Wait for ingestion to complete\n3. Try your query again\n\n**Alternatively:**\n- Use 'Web Search Only' mode to search the internet\n- Use 'Comprehensive Research' mode for multi-source research",
+                        citations=[],
+                        sources=[],
+                        mode=request.mode,
+                        web_enabled=False
+                    )
+                
+                # Use answer_query with uplifted query (only if we have documents!)
                 result = retriever.answer_query(
-                    query=request.query,
+                    query=final_query,  # Use uplifted query
                     top_k=retrieval_params.get('top_k', request.top_k),
                     conversation_history=conversation_history,
-                    model=selected_model,  # Use selected model
+                    model=selected_model,
                     bm25_top_k=retrieval_params.get('bm25_top_k', request.bm25_top_k),
                     embedding_top_k=retrieval_params.get('embedding_top_k', request.embedding_top_k),
                     rerank_top_k=retrieval_params.get('rerank_top_k', request.rerank_top_k)
@@ -687,14 +815,19 @@ async def ask_question(request: AskRequest, current_user: dict = Depends(get_cur
                 return citations
             
             response_data = {
-                "query": request.query,
+                "query": request.query,  # Keep original for display
                 "answer": result["answer"],
                 "citations": serialize_citations(result["citations"]),
                 "sources": serialize_citations(result.get("sources", result["citations"])),  # Frontend compatibility
                 "mode": "qa"
             }
+            
+            # Add uplift metadata
+            if uplift_metadata:
+                response_data["search_metadata"] = {"prompt_uplift": uplift_metadata}
+            
             redis_query_cache.set(
-                query=request.query,
+                query=request.query,  # Cache by original query
                 model=selected_model,
                 response=response_data,
                 temperature=request.temperature,
@@ -705,20 +838,26 @@ async def ask_question(request: AskRequest, current_user: dict = Depends(get_cur
             # Track performance
             response_time = time.time() - start_time
             monitor.track_query(
-                query=request.query,
+                query=request.query,  # Track original query
                 model=selected_model,
                 response_time=response_time,
                 query_type="normal",
                 success=True
             )
             
-            return AskResponse(
-                query=request.query,
+            response_obj = AskResponse(
+                query=request.query,  # Display original query to user
                 answer=result["answer"],
                 citations=result["citations"],
                 sources=result.get("sources", result["citations"]),  # Frontend compatibility
                 mode="qa"
             )
+            
+            # Add uplift metadata if available
+            if uplift_metadata:
+                response_obj.search_metadata = {"prompt_uplift": uplift_metadata}
+            
+            return response_obj
     except Exception as e:
         response_time = time.time() - start_time
         monitor.track_query(
@@ -730,6 +869,39 @@ async def ask_question(request: AskRequest, current_user: dict = Depends(get_cur
         )
         logger.error(f"Query error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def _deduplicate_results(results: list) -> list:
+    """
+    Deduplicate results by doc_id, keeping highest score.
+    
+    Args:
+        results: List of retrieval results with doc_id and score
+        
+    Returns:
+        Deduplicated list of results
+    """
+    seen = {}
+    for result in results:
+        # Get doc_id from result (handle different formats)
+        doc_id = None
+        if isinstance(result, dict):
+            doc_id = result.get('doc_id') or result.get('metadata', {}).get('doc_id') or result.get('metadata', {}).get('filename')
+            score = result.get('rerank_score') or result.get('score', 0.0)
+        else:
+            doc_id = getattr(result, 'doc_id', None)
+            score = getattr(result, 'rerank_score', getattr(result, 'score', 0.0))
+        
+        if doc_id:
+            if doc_id not in seen or score > seen[doc_id].get('score', 0.0):
+                seen[doc_id] = result if isinstance(result, dict) else {
+                    'text': getattr(result, 'text', ''),
+                    'doc_id': doc_id,
+                    'metadata': getattr(result, 'metadata', {}),
+                    'rerank_score': score
+                }
+    
+    return list(seen.values())
 
 
 @app.post("/ask-enhanced", response_model=AskResponse)

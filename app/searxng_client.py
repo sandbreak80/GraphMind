@@ -318,17 +318,38 @@ class EnhancedRAGWithSearXNG:
 
 
 def create_searxng_client(searxng_url: str = "http://localhost:8888") -> Optional[SearXNGClient]:
-    """Create SearXNG client if available."""
-    try:
-        client = SearXNGClient(searxng_url)
-        # Test connection
-        stats = client.get_stats()
-        if stats:
-            logger.info(f"SearXNG client connected to {searxng_url}")
-            return client
-        else:
-            logger.warning(f"SearXNG not available at {searxng_url}")
-            return None
-    except Exception as e:
-        logger.warning(f"Failed to create SearXNG client: {e}")
-        return None
+    """Create SearXNG client if available with retry logic."""
+    import time
+    
+    # Retry up to 3 times with increasing timeout
+    for attempt in range(3):
+        try:
+            timeout = 5 + (attempt * 5)  # 5s, 10s, 15s
+            logger.info(f"Attempting to connect to SearXNG (attempt {attempt+1}/3, timeout={timeout}s)...")
+            
+            client = SearXNGClient(searxng_url, timeout=timeout)
+            
+            # Simple connectivity test instead of stats
+            test_response = requests.get(
+                f"{searxng_url}/search?q=test&format=json",
+                timeout=timeout,
+                headers={
+                    'X-Forwarded-For': '127.0.0.1',
+                    'X-Real-IP': '127.0.0.1'
+                }
+            )
+            
+            if test_response.status_code == 200:
+                logger.info(f"✅ SearXNG client connected to {searxng_url} on attempt {attempt+1}")
+                return client
+            else:
+                logger.warning(f"SearXNG returned status {test_response.status_code}, retrying...")
+                time.sleep(2)
+                
+        except Exception as e:
+            logger.warning(f"SearXNG attempt {attempt+1} failed: {e}")
+            if attempt < 2:  # Don't sleep on last attempt
+                time.sleep(3)
+    
+    logger.error(f"❌ SearXNG not available at {searxng_url} after 3 attempts")
+    return None

@@ -320,10 +320,8 @@ export const useStore = create<AppState>()(
           messages: isDeletingCurrentChat ? [] : state.messages
         })
         
-        // If deleting the current chat, redirect to home page
-        if (isDeletingCurrentChat && typeof window !== 'undefined') {
-          window.location.href = '/'
-        }
+        // Note: Navigation is handled by the component calling this function
+        // to prevent full page reloads and auth issues
       },
       
       clearMessages: () => {

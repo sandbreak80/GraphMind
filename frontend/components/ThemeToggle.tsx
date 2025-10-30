@@ -9,7 +9,7 @@ import {
 } from '@heroicons/react/24/outline'
 
 export function ThemeToggle() {
-  const { theme, setTheme, settings } = useStore()
+  const { theme, setTheme, settings, updateSettings } = useStore()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export function ThemeToggle() {
     const newTheme = themes[nextIndex]
     
     // Update settings first
-    useStore.getState().updateSettings({ theme: newTheme })
+    updateSettings({ theme: newTheme })
     
     // Then apply the actual theme to the UI
     if (newTheme === 'system') {
@@ -40,10 +40,6 @@ export function ThemeToggle() {
     } else {
       setTheme(newTheme)
     }
-    
-    // Force a re-render by updating the component state
-    setMounted(false)
-    setTimeout(() => setMounted(true), 0)
   }
 
   const getIcon = () => {

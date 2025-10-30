@@ -61,16 +61,18 @@ export function Sidebar() {
   if (!sidebarOpen) return null
 
   return (
-    <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+    <div className="w-80 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-r border-gray-200/50 dark:border-gray-700/50 flex flex-col shadow-lg">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Chats
+      <div className="p-6 border-b border-gray-200/50 dark:border-gray-700/50">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center space-x-2">
+            <ChatBubbleLeftRightIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <span>Conversations</span>
           </h2>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="p-1 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
+            className="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100/80 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800/80 transition-all duration-200 active:scale-95"
+            aria-label="Close sidebar"
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
@@ -83,10 +85,10 @@ export function Sidebar() {
               const newChatId = createChat('New Chat')
               router.push(`/chat/${newChatId}`)
             }}
-            className="btn btn-primary w-full flex items-center justify-center space-x-2"
+            className="w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium shadow-md hover:shadow-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 active:scale-[0.98]"
           >
-            <PlusIcon className="h-4 w-4" />
-            <span>New Chat</span>
+            <PlusIcon className="h-5 w-5" />
+            <span>New Conversation</span>
           </button>
           <ExportAll className="w-full" />
         </div>
@@ -95,34 +97,34 @@ export function Sidebar() {
         <div className="mt-4 space-y-1">
           <Link
             href="/"
-            className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`flex items-center space-x-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
               pathname === '/'
-                ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 text-blue-700 dark:text-blue-300 shadow-sm'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100/80 dark:hover:bg-gray-800/80 active:scale-[0.98]'
             }`}
           >
-            <ChatBubbleLeftRightIcon className="h-4 w-4" />
+            <ChatBubbleLeftRightIcon className="h-5 w-5" />
             <span>Chats</span>
           </Link>
           
           <Link
             href="/memory"
-            className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`flex items-center space-x-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
               pathname === '/memory'
-                ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 text-blue-700 dark:text-blue-300 shadow-sm'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100/80 dark:hover:bg-gray-800/80 active:scale-[0.98]'
             }`}
           >
-            <CpuChipIcon className="h-4 w-4" />
+            <CpuChipIcon className="h-5 w-5" />
             <span>Memory</span>
           </Link>
           
           <Link
             href="/documents"
-            className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`flex items-center space-x-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
               pathname === '/documents'
-                ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 text-blue-700 dark:text-blue-300 shadow-sm'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100/80 dark:hover:bg-gray-800/80 active:scale-[0.98]'
             }`}
           >
             <DocumentTextIcon className="h-4 w-4" />
@@ -225,7 +227,14 @@ export function Sidebar() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      deleteChat(chat.id)
+                      // If deleting current chat, navigate to home first
+                      if (chat.id === currentChatId) {
+                        router.push('/')
+                        // Give router time to navigate before deleting
+                        setTimeout(() => deleteChat(chat.id), 100)
+                      } else {
+                        deleteChat(chat.id)
+                      }
                     }}
                     className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 transition-all"
                     title="Delete chat"

@@ -9,7 +9,7 @@ export const getApiUrl = () => {
     // Check if we're in development mode (localhost)
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
       // Use local backend for development - connect to the exposed port
-      return 'http://localhost:8002'
+      return 'http://localhost:8000'
     } else {
       // For production, the frontend is exposed via Cloudflare tunnel
       // but the API is NOT exposed - it's internal to the Docker network

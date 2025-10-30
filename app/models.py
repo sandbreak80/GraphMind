@@ -1,6 +1,7 @@
 """Pydantic models for API."""
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, model_serializer
+from dataclasses import dataclass
 
 
 class IngestRequest(BaseModel):
@@ -81,3 +82,35 @@ class StrategySpec(BaseModel):
     risk_management: Dict[str, Any] = Field(..., description="Risk parameters")
     indicators: List[Dict[str, Any]] = Field(default_factory=list, description="Technical indicators")
     notes: Optional[str] = Field(None, description="Additional notes")
+
+
+# Prompt Uplift Data Models (dataclasses for internal use)
+@dataclass
+class Classification:
+    """Query classification result."""
+    task_type: str              # "Q&A", "summarize", "compare", "code"
+    required_sources: List[str] # ["RAG", "Obsidian", "Web"]
+    entities: Dict[str, List[str]]  # {"tickers": ["ES"], "indicators": ["RSI"]}
+    output_format: str          # "markdown", "json", "table"
+    complexity: str             # "simple", "medium", "complex"
+    confidence: float           # 0.0-1.0
+
+
+@dataclass
+class UpliftedPrompt:
+    """Uplifted prompt result."""
+    original: str               # Original query
+    improved: str               # Improved query
+    classification: Classification
+    confidence: float           # Uplift quality score 0.0-1.0
+
+
+@dataclass
+class ProcessedQuery:
+    """Complete processed query result."""
+    final_query: str            # Main query to use
+    expansions: List[str]       # Expansion queries (0-3)
+    used_original: bool         # True if fallback occurred
+    classification: Classification
+    uplift_confidence: float
+    metadata: Dict[str, Any]    # Additional context

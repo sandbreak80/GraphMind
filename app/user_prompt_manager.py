@@ -35,7 +35,13 @@ class UserPromptManager:
             with open(user_file, 'r') as f:
                 user_prompts = json.load(f)
             
-            return user_prompts.get(mode)
+            prompt_data = user_prompts.get(mode)
+            if prompt_data and isinstance(prompt_data, dict):
+                return prompt_data.get("prompt")
+            elif isinstance(prompt_data, str):
+                # Backward compatibility if stored as string
+                return prompt_data
+            return None
             
         except Exception as e:
             logger.error(f"Failed to get user prompt for {user_id} mode {mode}: {e}")
@@ -60,9 +66,12 @@ class UserPromptManager:
                 "hash": hashlib.md5(prompt.encode()).hexdigest()[:8]
             }
             
-            # Save to file
+            # Save to file with explicit flush and sync
             with open(user_file, 'w') as f:
                 json.dump(user_prompts, f, indent=2)
+                f.flush()  # Flush Python's internal buffer
+                import os
+                os.fsync(f.fileno())  # Force OS to write to disk
             
             logger.info(f"Saved custom prompt for user {user_id} mode {mode}")
             return True

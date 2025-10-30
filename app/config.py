@@ -94,3 +94,18 @@ OLLAMA_TOP_K = int(os.getenv("OLLAMA_TOP_K", "40"))  # More diverse sampling
 OLLAMA_TOP_P = float(os.getenv("OLLAMA_TOP_P", "0.9"))  # Focused responses
 OLLAMA_REPEAT_PENALTY = float(os.getenv("OLLAMA_REPEAT_PENALTY", "1.1"))  # Reduce repetition
 OLLAMA_TEMPERATURE = float(os.getenv("OLLAMA_TEMPERATURE", "0.1"))  # Consistent responses
+
+# Prompt Uplift Configuration
+PROMPT_UPLIFT_ENABLED = os.getenv("PROMPT_UPLIFT_ENABLED", "true").lower() == "true"
+PROMPT_EXPANSION_COUNT = int(os.getenv("PROMPT_EXPANSION_COUNT", "3"))
+PROMPT_CONFIDENCE_THRESHOLD = float(os.getenv("PROMPT_CONFIDENCE_THRESHOLD", "0.75"))
+PROMPT_ENABLE_HYDE = os.getenv("PROMPT_ENABLE_HYDE", "true").lower() == "true"
+PROMPT_SKIP_THRESHOLD = int(os.getenv("PROMPT_SKIP_THRESHOLD", "3"))
+PROMPT_UPLIFTER_MODEL = os.getenv("PROMPT_UPLIFTER_MODEL", "llama3.2:3b-instruct")
+PROMPT_LATENCY_BUDGET_MS = int(os.getenv("PROMPT_LATENCY_BUDGET_MS", "600"))
+
+# Feature flags
+FEATURES = {
+    "prompt_uplift": PROMPT_UPLIFT_ENABLED,
+    "query_expansion": PROMPT_EXPANSION_COUNT > 0,
+}

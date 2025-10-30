@@ -22,14 +22,14 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user'
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className={`flex max-w-[80%] ${isUser ? 'flex-row-reverse' : 'flex-row'} space-x-2`}>
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-[fadeInUp_0.4s_ease-out]`}>
+      <div className={`flex max-w-[85%] ${isUser ? 'flex-row-reverse' : 'flex-row'} ${isUser ? 'space-x-reverse' : ''} space-x-3`}>
         {/* Avatar */}
-        <div className={`flex-shrink-0 ${isUser ? 'ml-2' : 'mr-2'}`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+        <div className={`flex-shrink-0 ${isUser ? 'ml-3' : 'mr-3'}`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md transition-transform duration-200 hover:scale-110 ${
             isUser 
-              ? 'bg-primary-600 text-white' 
-              : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+              ? 'bg-gradient-to-br from-blue-600 to-purple-600 text-white' 
+              : 'bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 text-gray-700 dark:text-gray-300'
           }`}>
             {isUser ? (
               <UserIcon className="h-5 w-5" />
@@ -41,10 +41,10 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 
         {/* Message Content */}
         <div className={`flex-1 ${isUser ? 'text-right' : 'text-left'}`}>
-          <div className={`inline-block p-4 rounded-lg ${
+          <div className={`inline-block p-4 rounded-2xl shadow-sm transition-all duration-200 ${
             isUser
-              ? 'bg-primary-600 text-white'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+              ? 'bg-gradient-to-br from-blue-600 to-purple-600 text-white shadow-blue-500/20 hover:shadow-md hover:shadow-blue-500/30'
+              : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200/50 dark:border-gray-700/50 hover:shadow-md'
           }`}>
             {isUser ? (
               <div className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</div>

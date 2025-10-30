@@ -76,7 +76,7 @@ export default function PromptsPage() {
     
     try {
       const response = await fetch(`/api/user-prompts/${editingMode}`, {
-        method: 'POST',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`
@@ -85,11 +85,15 @@ export default function PromptsPage() {
       })
       
       if (response.ok) {
+        const data = await response.json()
         setPrompts(prev => ({ ...prev, [editingMode]: editValue }))
         setEditingMode(null)
         toast.success('Prompt saved successfully')
+        // Verify the save by reloading
+        await loadPrompts()
       } else {
-        toast.error('Failed to save prompt')
+        const errorData = await response.json()
+        toast.error(errorData.error || 'Failed to save prompt')
       }
     } catch (error) {
       toast.error('Failed to save prompt')
