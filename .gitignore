@@ -42,7 +42,7 @@ reingest_api.log
 # Local data directories (user-specific)
 rag_docs_zone/
 pdfs/
-documents/
+/documents/
 data/
 
 # Docker
