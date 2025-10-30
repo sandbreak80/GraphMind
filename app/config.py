@@ -26,7 +26,7 @@ else:
 OUTPUT_DIR.mkdir(exist_ok=True, parents=True)
 
 # Collection Configuration
-COLLECTION_NAME = os.getenv("COLLECTION_NAME", "tradingai_docs")
+COLLECTION_NAME = os.getenv("COLLECTION_NAME", "documents")
 
 # Ollama
 if Path("/workspace").exists():
