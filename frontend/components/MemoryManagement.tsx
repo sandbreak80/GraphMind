@@ -18,7 +18,7 @@ interface MemoryCategory {
 interface UserProfile {
   user_id: string
   preferences: Record<string, any>
-  strategies: string[]
+  interests: string[]
   recent_insights: MemoryInsight[]
   created_at: number
   updated_at: number
@@ -63,7 +63,7 @@ export default function MemoryManagement() {
       }
       
       // Load insights for each category
-      const categories = ['general', 'strategy_discussion', 'preferences', 'context']
+      const categories = ['personal', 'preferences', 'interests', 'context', 'goals', 'background']
       const categoryData: MemoryCategory[] = []
       
       for (const category of categories) {
@@ -224,8 +224,36 @@ export default function MemoryManagement() {
   return (
     <div className="max-w-6xl mx-auto p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Memory Management</h1>
-        <p className="text-gray-600 dark:text-gray-400">View and manage your stored insights, preferences, and strategies.</p>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Memory</h1>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">
+          GraphMind remembers important details about you to provide more personalized responses. 
+          View and manage what I remember about your preferences, interests, and context.
+        </p>
+        
+        {/* Info Box */}
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+          <h3 className="font-semibold text-purple-900 dark:text-purple-100 mb-2">How Memory Works</h3>
+          <div className="text-sm text-purple-800 dark:text-purple-200 space-y-2">
+            <p>
+              <strong>Personal:</strong> Information about you, your name, location, role, etc.
+            </p>
+            <p>
+              <strong>Preferences:</strong> Your communication style, format preferences, and how you like responses.
+            </p>
+            <p>
+              <strong>Interests:</strong> Topics you care about, hobbies, and areas of focus.
+            </p>
+            <p>
+              <strong>Context:</strong> Current projects, ongoing work, and relevant background.
+            </p>
+            <p>
+              <strong>Goals:</strong> Your objectives, what you're working towards, and aspirations.
+            </p>
+            <p>
+              <strong>Background:</strong> Your experience, skills, and knowledge areas.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Stats Overview */}
@@ -233,7 +261,7 @@ export default function MemoryManagement() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
             <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.total_insights}</div>
-            <div className="text-sm text-blue-800 dark:text-blue-300">Total Insights</div>
+            <div className="text-sm text-blue-800 dark:text-blue-300">Things Remembered</div>
           </div>
           <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
             <div className="text-2xl font-bold text-green-600 dark:text-green-400">{Object.keys(stats.categories).length}</div>
@@ -243,13 +271,13 @@ export default function MemoryManagement() {
             <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
               {stats.oldest_insight > 0 ? formatDistanceToNow(new Date(stats.oldest_insight * 1000), { addSuffix: true }) : 'N/A'}
             </div>
-            <div className="text-sm text-purple-800 dark:text-purple-300">Oldest Insight</div>
+            <div className="text-sm text-purple-800 dark:text-purple-300">First Memory</div>
           </div>
           <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
             <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
               {stats.newest_insight > 0 ? formatDistanceToNow(new Date(stats.newest_insight * 1000), { addSuffix: true }) : 'N/A'}
             </div>
-            <div className="text-sm text-orange-800 dark:text-orange-300">Newest Insight</div>
+            <div className="text-sm text-orange-800 dark:text-orange-300">Latest Memory</div>
           </div>
         </div>
       )}
@@ -300,11 +328,11 @@ export default function MemoryManagement() {
             <div className="bg-gray-50 dark:bg-gray-700/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
               <div>
                 <h3 className="font-semibold text-gray-900 dark:text-white capitalize">
-                  {category.category.replace('_', ' ')} ({category.count} insights)
+                  {category.category.replace('_', ' ')} ({category.count} {category.count === 1 ? 'memory' : 'memories'})
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   {category.insights.length > 0 && (
-                    `Last updated: ${formatDistanceToNow(new Date(Math.max(...category.insights.map(i => i.created_at)) * 1000), { addSuffix: true })}`
+                    `Last updated ${formatDistanceToNow(new Date(Math.max(...category.insights.map(i => i.created_at)) * 1000), { addSuffix: true })}`
                   )}
                 </p>
               </div>
@@ -319,14 +347,16 @@ export default function MemoryManagement() {
             
             <div className="p-4">
               {category.insights.length === 0 ? (
-                <p className="text-gray-500 dark:text-gray-400 italic">No insights in this category</p>
+                <p className="text-gray-500 dark:text-gray-400 italic">
+                  No memories in this category yet. Continue chatting and I'll remember important details about you.
+                </p>
               ) : (
                 <div className="space-y-3">
                   {category.insights.map((insight, index) => (
                     <div key={index} className="border-l-4 border-primary-200 dark:border-primary-800 pl-4 py-2 bg-gray-50 dark:bg-gray-700/30 rounded-r">
                       <p className="text-gray-900 dark:text-white">{insight.insight}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {formatDistanceToNow(new Date(insight.created_at * 1000), { addSuffix: true })}
+                        Remembered {formatDistanceToNow(new Date(insight.created_at * 1000), { addSuffix: true })}
                       </p>
                     </div>
                   ))}
